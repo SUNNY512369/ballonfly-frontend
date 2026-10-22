@@ -1,7 +1,8 @@
-modules = ["nodejs-20", "web"]
+modules = ["nodejs-20", "python-3.11", "web"]
 
 [nix]
 channel = "stable-25_05"
+packages = ["tecoc"]
 
 [agent]
 expertMode = true
@@ -9,6 +10,18 @@ expertMode = true
 [[ports]]
 localPort = 5000
 externalPort = 80
+
+[[ports]]
+localPort = 5001
+externalPort = 3000
+
+[[ports]]
+localPort = 5002
+externalPort = 3001
+
+[[ports]]
+localPort = 5173
+externalPort = 5173
 
 [workflows]
 runButton = "Project"
