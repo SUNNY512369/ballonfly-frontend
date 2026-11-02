@@ -3,21 +3,30 @@ import {
   Home, Play, Pause, User, PlusSquare, Heart, MessageCircle, Share2,
   Bookmark, Search, X, Image as ImageIcon, Video, Zap, Volume2, VolumeX,
   Mail, Lock, LogOut, Loader2, Settings, Bell, Shield, Globe, Trash2,
-  ChevronRight, Check, UserPlus, Flame, Send, ArrowLeft, Sparkles, Eye, Camera, Maximize2, Minimize2
+  ChevronRight, ChevronDown, MoreVertical, Check, UserPlus, Flame, Send, ArrowLeft, Sparkles, Eye, Camera, Maximize2, Minimize2, EyeOff, Plus
 } from "lucide-react";
 import VideoControls from "./VideoControls";
-import VideoWatchPage from "./VideoWatchPage.jsx";
-import { useIsDesktop, isDesktopNow, DesktopHeader, DesktopSidebar, DesktopHome, DesktopVideoList, DESKTOP_CSS } from "./Desktop.jsx";
+import WatchPage from "./WatchPage";
+import logoStacked from "./assets/ballonfly-logo.png";
+import butterflyImg from "./assets/ballonfly-butterfly.png";
+import wordmarkImg from "./assets/ballonfly-wordmark.png";
+import monogramImg from "./assets/ballonfly-monogram.png";
+import wmBallon from "./assets/ballonfly-wm-ballon.png";
+import wmFly from "./assets/ballonfly-wm-fly.png";
 
-const API_BASE = "https://73f66bd3-8cea-466c-bb50-f674376c52b5-00-258qwqohl8u35.pike.replit.dev/api";
+// Backend URL: Vercel/Replit mein VITE_API_BASE set karein (jaise https://mera-backend.com/api).
+// Agar set na ho to neeche wala default URL use hota hai.
+const API_BASE =
+  (typeof import.meta !== "undefined" && import.meta.env && import.meta.env.VITE_API_BASE) ||
+  "https://73f66bd3-8cea-466c-bb50-f674376c52b5-00-258qwqohl8u35.pike.replit.dev/api";
 
 const GRADIENTS = [
-  "linear-gradient(135deg,#FF4D6D,#7C3AED)",
-  "linear-gradient(135deg,#33D6A6,#2563EB)",
-  "linear-gradient(135deg,#F2B84B,#FF4D6D)",
-  "linear-gradient(135deg,#7C3AED,#33D6A6)",
-  "linear-gradient(135deg,#2563EB,#F2B84B)",
-  "linear-gradient(135deg,#FF4D6D,#F2B84B)",
+  "linear-gradient(135deg,#00CFFF,#8A42FF)",
+  "linear-gradient(135deg,#00E5FF,#2563EB)",
+  "linear-gradient(135deg,#8A42FF,#C45BFF)",
+  "linear-gradient(135deg,#8A42FF,#00E5FF)",
+  "linear-gradient(135deg,#2563EB,#00CFFF)",
+  "linear-gradient(135deg,#C45BFF,#00CFFF)",
 ];
 
 const NAMES = ["Ayesha K.", "Bilal R.", "Zoya M.", "Hamza T.", "Sana W.", "Usman F.", "Mahnoor S.", "Ali Q."];
@@ -251,7 +260,7 @@ function Avatar({ name, size = 40, imageUrl, initialOnly = false }) {
     : name.split(" ").map((n) => n[0]).slice(0, 2).join("");
   const idx = name.length % GRADIENTS.length;
   return (
-    <div>
+    <div
       className="avatar"
       style={{ width: size, height: size, fontSize: size * 0.38, background: GRADIENTS[idx] }}
     >
@@ -658,7 +667,7 @@ function ShortsView({
   }, [shortIdsKey]);
 
   return (
-    <div>
+    <div
       ref={scrollerRef}
       className={"shorts-scroller" + (isSparks ? " sparks-scroller" : "")}
       aria-label={isSparks ? "Sparks video feed" : "Reels video feed"}
@@ -1116,7 +1125,7 @@ function UploadModal({ onClose, onPost, onShortUploaded, onOpenVideoUpload, toke
         )}
 
         {type === "short" && file?.type.startsWith("video/") && videoDuration !== null && (
-          <p style={{ fontSize: 12, color: videoDuration < 15 || videoDuration > 60 ? "#FF4D6D" : "#9B94A8", marginTop: -8, marginBottom: 12 }}>
+          <p style={{ fontSize: 12, color: videoDuration < 15 || videoDuration > 60 ? "#FF4D6D" : "#91D8FC", marginTop: -8, marginBottom: 12 }}>
             Duration: {videoDuration.toFixed(1)}s (15-60s zaroori hai)
           </p>
         )}
@@ -1387,7 +1396,49 @@ function shortCount(n) {
   return String(v);
 }
 
-function VideosFeed({ token, userId, community, mine }) {
+// Mobile top bar (logo, search, bell, profile) - same look as the Watch Page header
+function AppHeader({ user, unread, query, onQuery, onBell, onProfile }) {
+  const [avatarUrl, setAvatarUrl] = useState("");
+  const [searchOpen, setSearchOpen] = useState(false);
+  useEffect(() => {
+    if (!user || !user.token) return undefined;
+    let off = false;
+    fetch(API_BASE + "/auth/me", { headers: { Authorization: "Bearer " + user.token } })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => { if (!off && d && d.user && d.user.avatarUrl) setAvatarUrl(d.user.avatarUrl); })
+      .catch(() => {});
+    return () => { off = true; };
+  }, [user && user.token]);
+  return (
+    <header className="app-header">
+      {searchOpen ? (
+        <div className="hdr-sbox">
+          <Search size={18} />
+          <input autoFocus value={query} onChange={(e) => onQuery(e.target.value)} placeholder="Videos search karein" />
+          <button type="button" onClick={() => { onQuery(""); setSearchOpen(false); }} aria-label="Close search"><X size={18} /></button>
+        </div>
+      ) : (
+        <>
+          <div className="app-header-logo">
+            <img className="hdr-bf" src={butterflyImg} alt="" draggable="false" />
+            <img className="hdr-wm" src={wordmarkImg} alt="Ballonfly" draggable="false" />
+          </div>
+          <button type="button" className="hdr-btn" onClick={() => setSearchOpen(true)} aria-label="Search"><Search size={24} /></button>
+          <button type="button" className="hdr-btn hdr-bell" onClick={onBell} aria-label="Notifications">
+            <Bell size={24} />
+            {unread > 0 && <span className="hdr-badge">{unread > 99 ? "99+" : unread}</span>}
+          </button>
+          <button type="button" className="hdr-me" onClick={onProfile} aria-label="Profile">
+            <span className="hdr-ring"><Avatar name={(user && user.name) || "U"} size={36} imageUrl={avatarUrl} initialOnly /></span>
+            <ChevronDown size={16} />
+          </button>
+        </>
+      )}
+    </header>
+  );
+}
+
+function VideosFeed({ token, userId, community, mine, query = "", onQuery, extraChips = [] }) {
   const [videos, setVideos] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -1395,6 +1446,7 @@ function VideosFeed({ token, userId, community, mine }) {
   const [category, setCategory] = useState("All");
   const [retry, setRetry] = useState(0);
   const [active, setActive] = useState(null);
+
   useEffect(() => {
     fetch(API_BASE + "/videos/meta")
       .then((r) => (r.ok ? r.json() : null))
@@ -1427,11 +1479,42 @@ function VideosFeed({ token, userId, community, mine }) {
   }, [category, retry, community, mine]);
 
   const openVideo = (v) => setActive(v);
+  const closeVideo = () => {
+    setActive(null);
+    try {
+      const u = new URL(window.location.href);
+      if (u.searchParams.has("v")) {
+        u.searchParams.delete("v");
+        window.history.replaceState({}, "", u.pathname + u.search);
+      }
+    } catch (e) { /* ignore */ }
+  };
+
+  // open a shared link like /?v=<videoId>
+  useEffect(() => {
+    if (mine || community) return;
+    try {
+      const vid = new URLSearchParams(window.location.search).get("v");
+      if (vid && /^[a-f0-9]{24}$/i.test(vid)) setActive({ _id: vid });
+    } catch (e) { /* ignore */ }
+  }, []);
 
   const authorName = (v) => (v.author && v.author.name ? v.author.name : "Unknown");
+  const [copied, setCopied] = useState(false);
+  const copyVideoLink = (id) => {
+    const link = window.location.origin + window.location.pathname + "?v=" + id;
+    const done = () => { setCopied(true); setTimeout(() => setCopied(false), 1800); };
+    if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(link).then(done).catch(() => {});
+  };
 
   return (
     <section className={"vf" + (mine ? " vf-mine" : "")}>
+      {onQuery && (
+        <div className="vf-search">
+          <Search size={16} />
+          <input value={query} onChange={(e) => onQuery(e.target.value)} placeholder="Videos search karein" />
+        </div>
+      )}
       <div className="vf-chips">
         {cats.map((c) => (
           <button
@@ -1443,17 +1526,17 @@ function VideosFeed({ token, userId, community, mine }) {
             {c}
           </button>
         ))}
+        {extraChips.map((c) => (
+          <button key={c.label} type="button" className="vf-extra" onClick={c.onClick}>{c.label}</button>
+        ))}
       </div>
 
       {loading && videos.length === 0 && (
         <>
-          {[0, 1, 2].map((i) => (
+          {[0, 1, 2, 3].map((i) => (
             <div key={i} className="vf-card vf-skel">
               <div className="vf-thumb" />
-              <div className="vf-info">
-                <span className="vf-avatar" />
-                <div className="vf-meta"><strong>&nbsp;</strong><span>&nbsp;</span></div>
-              </div>
+              <div className="vf-meta"><strong>&nbsp;</strong><span>&nbsp;</span><span>&nbsp;</span></div>
             </div>
           ))}
         </>
@@ -1470,30 +1553,39 @@ function VideosFeed({ token, userId, community, mine }) {
         <p className="feed-status">Abhi koi video nahi hai. Create (+) dabao aur "Lambi video upload karein" chuno.</p>
       )}
 
-      {videos.map((v) => (
-        <button key={v._id} type="button" className="vf-card" onClick={() => openVideo(v)}>
+      {videos.filter((v) => {
+        const q = (query || "").trim().toLowerCase();
+        return !q || (v.title || "").toLowerCase().indexOf(q) > -1 || authorName(v).toLowerCase().indexOf(q) > -1;
+      }).map((v) => (
+        <div key={v._id} className="vf-card" role="button" tabIndex={0} onClick={() => openVideo(v)} onKeyDown={(e) => { if (e.key === "Enter") openVideo(v); }}>
           <div className="vf-thumb">
             <img src={v.thumbnailUrl} alt="" loading="lazy" />
             <span className="vf-dur">{vfDuration(v.duration)}</span>
           </div>
-          <div className="vf-info">
-            <span className="vf-avatar">{authorName(v).slice(0, 1).toUpperCase()}</span>
-            <div className="vf-meta">
-              <strong>{v.title}</strong>
-              <span>{authorName(v)} · {shortCount(v.views)} views · {videoAgo(v.createdAt)}</span>
-            </div>
+          <span className="vf-chav">{authorName(v).slice(0, 1).toUpperCase()}</span>
+          <div className="vf-meta">
+            <strong>{v.title}</strong>
+            <span className="vf-author">{authorName(v)}{v.author && v.author.verified && <svg className="vf-tick" viewBox="0 0 24 24" aria-label="Verified"><circle cx="12" cy="12" r="11" fill="currentColor" /><path d="M7.2 12.4l3.2 3.2 6.4-6.6" fill="none" stroke="#fff" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" /></svg>}</span>
+            <span className="vf-stats">{shortCount(v.views)} views<i>•</i>{videoAgo(v.createdAt)}</span>
           </div>
-        </button>
+          <button type="button" className="vf-more" aria-label="Copy link" onClick={(e) => { e.stopPropagation(); copyVideoLink(v._id); }}>
+            <MoreVertical size={20} />
+          </button>
+        </div>
       ))}
 
+      {copied && <div className="vf-toast" role="status">Link copy ho gaya</div>}
+
       {active && (
-        <VideoWatchPage
+        <WatchPage
           key={active._id}
-          video={active}
-          apiBase={API_BASE}
+          api={API_BASE}
           token={token}
           userId={userId}
-          onClose={() => setActive(null)}
+          initial={active}
+          categories={cats}
+          onClose={closeVideo}
+          onOpen={openVideo}
         />
       )}
     </section>
@@ -1501,8 +1593,8 @@ function VideosFeed({ token, userId, community, mine }) {
 }
 
 const COMMUNITY_COLORS = [
-  ["#7c5cff", "#ff4d6d"], ["#00c6a7", "#3a7bd5"], ["#ff8a00", "#e52e71"],
-  ["#4facfe", "#7c5cff"], ["#f857a6", "#ff5858"], ["#11998e", "#38ef7d"], ["#8e2de2", "#4a00e0"],
+  ["#8A42FF", "#00CFFF"], ["#00c6a7", "#3a7bd5"], ["#C45BFF", "#2563EB"],
+  ["#4facfe", "#7c5cff"], ["#00CFFF", "#2563EB"], ["#00B8D4", "#00E5FF"], ["#8e2de2", "#4a00e0"],
 ];
 
 function CommunitiesView({ token, userId }) {
@@ -1863,9 +1955,9 @@ function ProfileChannel({ user, onLogout }) {
 
   const shareProfile = () => {
     const url = window.location.origin;
-    const text = (profile ? profile.channelName : "Mera channel") + " Tolvify par";
+    const text = (profile ? profile.channelName : "Mera channel") + " Ballonfly par";
     if (navigator.share) {
-      navigator.share({ title: "Tolvify", text: text, url: url }).catch(() => {});
+      navigator.share({ title: "Ballonfly", text: text, url: url }).catch(() => {});
     } else if (navigator.clipboard) {
       navigator.clipboard.writeText(url).then(() => flash("Link copy ho gaya")).catch(() => {});
     }
@@ -1928,7 +2020,7 @@ function ProfileChannel({ user, onLogout }) {
             <button type="button" onClick={() => soon("Watch History")}>Watch History</button>
             <button type="button" onClick={() => soon("Watch List")}>Watch List</button>
             <button type="button" onClick={() => soon("Policy Violations")}>Policy Violations</button>
-            <button type="button" onClick={() => showText("Terms & Conditions", "Tolvify istemal karke aap maante hain ke aap sirf apni ya ijazat wali videos daalenge, kisi ki tauheen ya nuqsan nahi karenge, aur qaanooni qawaneen ki pairwi karenge. Qawaid khilaf-warzi par video ya account band kiya ja sakta hai. (Ye abhi ka mukhtasar masauda hai.)")}>Terms & Conditions</button>
+            <button type="button" onClick={() => showText("Terms & Conditions", "Ballonfly istemal karke aap maante hain ke aap sirf apni ya ijazat wali videos daalenge, kisi ki tauheen ya nuqsan nahi karenge, aur qaanooni qawaneen ki pairwi karenge. Qawaid khilaf-warzi par video ya account band kiya ja sakta hai. (Ye abhi ka mukhtasar masauda hai.)")}>Terms & Conditions</button>
             <button type="button" onClick={() => showText("Privacy Policy", "Hum aapka email, naam aur jo aap upload karte hain mehfooz rakhte hain. Aapka password hamesha encrypted rehta hai. Aapka data kisi ko bechne ke liye nahi hai. (Ye abhi ka mukhtasar masauda hai.)")}>Privacy Policy</button>
             <button type="button" onClick={() => soon("Delete Your Account")}>Delete Your Account</button>
             <button type="button" onClick={() => { setMenuOpen(false); if (onLogout) onLogout(); }}>Logout</button>
@@ -2062,7 +2154,7 @@ const STRINGS = {
 
 const RTL_LANGS = ["ur", "ar", "fa", "ps"];
 const LANGUAGE_NAMES = { en: "English", ur: "اردو", ar: "العربية", hi: "हिन्दी", es: "Español", fr: "Français" };
-const LANG_KEY = "tolvify_lang";
+const LANG_KEY = "ballonfly_lang";
 
 let currentLang = "en";
 try {
@@ -2145,7 +2237,7 @@ function LanguageSuggest({ countryCode, token }) {
   if (hidden || !info || !countryCode) return null;
   const code = info.countryLanguage[countryCode];
   if (!code || code === lang || !STRINGS[code]) return null;
-  const dismissKey = "tolvify_lang_dismiss_" + code;
+  const dismissKey = "ballonfly_lang_dismiss_" + code;
   try {
     if (localStorage.getItem(dismissKey)) return null;
   } catch (e) {}
@@ -2361,7 +2453,7 @@ function CountriesView({ token, userId }) {
             placeholder={t("countries.search")}
           />
           {filtered.map((c) => (
-            <div>
+            <div
               key={c.code}
               className={"wd-row" + (data.mine === c.code ? " mine" : "")}
               onClick={() => setSelected(c)}
@@ -2389,8 +2481,30 @@ function AuthScreen({ onAuth }) {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [confirm, setConfirm] = useState("");
+  const [agree, setAgree] = useState(false);
+  const [remember, setRemember] = useState(true);
+  const [showPass, setShowPass] = useState(false);
+  const [showConfirm, setShowConfirm] = useState(false);
+  const [toast, setToast] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const toastTimer = useRef(null);
+  const showToast = (m) => {
+    setToast(m);
+    clearTimeout(toastTimer.current);
+    toastTimer.current = setTimeout(() => setToast(""), 3000);
+  };
+  useEffect(() => () => clearTimeout(toastTimer.current), []);
+  useEffect(() => {
+    if (!error) return undefined;
+    const t = setTimeout(() => setError(""), 3200);
+    return () => clearTimeout(t);
+  }, [error]);
+  useEffect(() => {
+    try { const saved = localStorage.getItem("ballonfly_email"); if (saved) setEmail(saved); } catch (e) { /* ignore */ }
+  }, []);
+  const switchMode = (m) => { setMode(m); setError(""); setShowPass(false); setShowConfirm(false); };
 
   const submit = async (e) => {
     e.preventDefault();
@@ -2398,6 +2512,8 @@ function AuthScreen({ onAuth }) {
     if (!email.includes("@")) return setError("Sahi email address daalein");
     if (password.length < 6) return setError("Password kam se kam 6 characters ka ho");
     if (mode === "signup" && !name.trim()) return setError("Apna naam daalein");
+    if (mode === "signup" && password !== confirm) return setError("Passwords match nahi karte");
+    if (mode === "signup" && !agree) return setError("Terms se agree karna zaroori hai");
 
     setLoading(true);
     try {
@@ -2420,6 +2536,11 @@ function AuthScreen({ onAuth }) {
       }
 
       setLoading(false);
+      try {
+        if (remember) localStorage.setItem("ballonfly_email", email);
+        else localStorage.removeItem("ballonfly_email");
+      } catch (e) { /* ignore */ }
+      showToast(mode === "signup" ? "Account created successfully!" : "Login successful!");
       onAuth({
         name: data.user.displayName || data.user.username,
         email,
@@ -2432,113 +2553,181 @@ function AuthScreen({ onAuth }) {
     }
   };
 
+  const loginActive = mode === "login";
   return (
     <div className="auth-root">
       <style>{`
-        .auth-root {
-          --bg: #15121C; --surface: #201B29; --surface-2: #2A2333;
-          --border: #322B3D; --text: #F3F0F7; --text-muted: #9B94A8;
-          --accent: #FF4D6D; --accent-2: #33D6A6;
-          min-height: 100vh; display: flex; align-items: center; justify-content: center;
-          background: var(--bg); font-family: 'Inter', sans-serif; padding: 20px;
-        }
-        .auth-root * { box-sizing: border-box; }
-        .auth-card {
-          width: 100%; max-width: 380px; background: var(--surface);
-          border: 1px solid var(--border); border-radius: 20px; padding: 32px 28px;
-        }
-        .auth-brand {
-          font-family: 'Space Grotesk', sans-serif; font-size: 28px; font-weight: 700;
-          text-align: center; margin-bottom: 4px;
-          background: linear-gradient(135deg, var(--accent), var(--accent-2));
-          -webkit-background-clip: text; background-clip: text; color: transparent;
-        }
-        .auth-sub { text-align: center; color: var(--text-muted); font-size: 13px; margin-bottom: 26px; }
-        .auth-tabs { display: flex; background: var(--surface-2); border-radius: 10px; padding: 4px; margin-bottom: 22px; }
-        .auth-tabs button {
-          flex: 1; padding: 8px; border: none; background: transparent; color: var(--text-muted);
-          font-size: 13px; font-weight: 600; border-radius: 8px; cursor: pointer;
-        }
-        .auth-tabs button.active { background: var(--surface); color: var(--text); }
-        .auth-field { margin-bottom: 14px; }
-        .auth-field label { display: block; font-size: 12px; color: var(--text-muted); margin-bottom: 6px; }
-        .auth-input {
-          display: flex; align-items: center; gap: 8px;
-          background: var(--surface-2); border: 1px solid var(--border); border-radius: 10px;
-          padding: 10px 12px;
-        }
-        .auth-input input {
-          background: transparent; border: none; outline: none; color: var(--text);
-          font-size: 14px; width: 100%;
-        }
-        .auth-input svg { color: var(--text-muted); flex-shrink: 0; }
-        .auth-error { color: var(--accent); font-size: 12px; margin-bottom: 12px; }
-        .auth-submit {
-          width: 100%; padding: 12px; border-radius: 10px; border: none;
-          background: var(--accent); color: white; font-weight: 600; font-size: 14px;
-          cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px;
-        }
-        .auth-submit:disabled { opacity: 0.7; cursor: default; }
-        .spin { animation: spin 0.8s linear infinite; }
-        @keyframes spin { to { transform: rotate(360deg); } }
-      `}</style>
-      <div className="auth-card">
-        <div className="auth-brand">Tolvify</div>
-        <div className="auth-sub">Create. Connect. Watch.</div>
+.auth-root {
+  min-height: 100vh; display: flex; justify-content: center; align-items: center; padding: 20px;
+  background: #e6ecef; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+}
+.auth-root * { box-sizing: border-box; margin: 0; padding: 0; font-family: inherit; }
+.auth-toast {
+  position: fixed; top: -70px; left: 50%; transform: translateX(-50%); background: #e6ecef; color: #007aff;
+  padding: 12px 24px; border-radius: 30px; font-size: 14px; font-weight: 600; display: flex; align-items: center; gap: 10px;
+  box-shadow: 6px 6px 16px #c5cbce, -6px -6px 16px #ffffff; transition: top 0.4s ease-in-out; z-index: 1000; max-width: 92vw;
+}
+.auth-toast.show { top: 25px; }
+.auth-toast.err { color: #d93025; }
+.auth-card {
+  width: min(360px, 100%); background: #e6ecef; border-radius: 35px; padding: 30px 25px; position: relative; overflow: hidden;
+  box-shadow: 12px 12px 28px #c5cbce, -12px -12px 28px #ffffff; min-height: 540px; transition: min-height 0.4s ease-in-out;
+}
+.auth-card.signup { min-height: 610px; }
+.auth-form-wrap {
+  display: flex; flex-direction: column; align-items: center; position: absolute; top: 30px; left: 25px;
+  width: calc(100% - 50px); transition: all 0.4s ease-in-out; opacity: 0; pointer-events: none;
+}
+.auth-form-wrap.sign-in { transform: translateX(0); }
+.auth-form-wrap.sign-up { transform: translateX(100%); }
+.auth-form-wrap.active { opacity: 1; pointer-events: all; transform: translateX(0) !important; }
+.auth-form-wrap.exit-left { transform: translateX(-100%) !important; opacity: 0; }
+.brand-header { display: flex; flex-direction: column; align-items: center; margin-bottom: 8px; }
+.brand-logo { width: 70px; height: auto; object-fit: contain; filter: drop-shadow(3px 3px 6px rgba(0, 0, 0, 0.12)); }
+.brand-name { margin-top: 4px; line-height: 0; }
+.brand-wordmark { display: flex; align-items: center; height: 36px; }
+.brand-wordmark img { height: 100%; width: auto; display: block; }
+.wm-ballon {
+  filter: drop-shadow(0.8px 0 0 #000) drop-shadow(-0.8px 0 0 #000) drop-shadow(0 0.8px 0 #000) drop-shadow(0 -0.8px 0 #000) drop-shadow(0 3px 5px rgba(20, 30, 60, 0.25));
+}
+.wm-fly { filter: drop-shadow(0 3px 5px rgba(20, 30, 60, 0.18)); }
+.auth-title { font-size: 20px; font-weight: 700; color: #2d3748; margin-bottom: 2px; }
+.auth-subtitle { font-size: 12px; color: #718096; margin-bottom: 20px; text-align: center; }
+.auth-form-wrap form { width: 100%; }
+.input-group { position: relative; margin-bottom: 16px; width: 100%; }
+.input-group input[type="text"], .input-group input[type="email"], .input-group input[type="password"] {
+  width: 100%; padding: 13px 16px 13px 45px; border: none; outline: none; background: #e6ecef; border-radius: 20px;
+  font-size: 14px; color: #2d3748; box-shadow: inset 4px 4px 8px #c5cbce, inset -4px -4px 8px #ffffff; transition: all 0.2s ease;
+}
+.input-group input::placeholder { color: #a0aec0; }
+.input-group input:focus { box-shadow: inset 5px 5px 10px #c5cbce, inset -5px -5px 10px #ffffff; }
+.input-icon { position: absolute; left: 16px; top: 50%; transform: translateY(-50%); color: #a0aec0; pointer-events: none; display: grid; }
+.password-group input { padding-right: 45px !important; }
+.eye-btn { position: absolute; right: 15px; top: 50%; transform: translateY(-50%); background: none; border: none; color: #718096; cursor: pointer; padding: 5px; display: grid; }
+.eye-btn:hover { color: #007aff; }
+.form-options { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; font-size: 12px; padding: 0 4px; }
+.checkbox-container { display: flex; align-items: center; cursor: pointer; color: #718096; user-select: none; }
+.checkbox-container input { display: none; }
+.checkmark { width: 18px; height: 18px; border-radius: 6px; background: #e6ecef; box-shadow: inset 2px 2px 5px #c5cbce, inset -2px -2px 5px #ffffff; margin-right: 8px; position: relative; transition: all 0.2s ease; flex-shrink: 0; }
+.checkbox-container input:checked ~ .checkmark { box-shadow: 2px 2px 5px #c5cbce, -2px -2px 5px #ffffff; }
+.checkmark:after { content: ""; position: absolute; display: none; left: 6px; top: 2px; width: 4px; height: 9px; border: solid #007aff; border-width: 0 2px 2px 0; transform: rotate(45deg); }
+.checkbox-container input:checked ~ .checkmark:after { display: block; }
+.forgot-pass { color: #007aff; text-decoration: none; font-weight: 600; background: none; border: none; cursor: pointer; font-size: 12px; }
+.forgot-pass:hover { text-decoration: underline; }
+.submit-btn {
+  width: 100%; padding: 13px; border: none; border-radius: 20px; background: #e6ecef; color: #007aff; font-size: 15px; font-weight: 700;
+  cursor: pointer; box-shadow: 6px 6px 14px #c5cbce, -6px -6px 14px #ffffff; transition: all 0.2s ease; margin-bottom: 20px;
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+}
+.submit-btn:hover { color: #0056b3; }
+.submit-btn:active { box-shadow: inset 4px 4px 8px #c5cbce, inset -4px -4px 8px #ffffff; }
+.submit-btn:disabled { opacity: 0.7; cursor: default; }
+.card-footer { width: 100%; display: flex; justify-content: space-between; align-items: center; }
+.footer-text { font-size: 12px; color: #a0aec0; }
+.action-circle-btn {
+  width: 40px; height: 40px; border-radius: 50%; border: none; background: #e6ecef; color: #007aff; cursor: pointer;
+  display: flex; justify-content: center; align-items: center; box-shadow: 5px 5px 10px #c5cbce, -5px -5px 10px #ffffff; transition: all 0.2s ease;
+}
+.action-circle-btn:hover { transform: scale(1.05); }
+.action-circle-btn:active { box-shadow: inset 3px 3px 6px #c5cbce, inset -3px -3px 6px #ffffff; }
+.spin { animation: spin 0.8s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+`}</style>
 
-        <div className="auth-tabs">
-          <button className={mode === "login" ? "active" : ""} onClick={() => setMode("login")}>Log In</button>
-          <button className={mode === "signup" ? "active" : ""} onClick={() => setMode("signup")}>Sign Up</button>
+      <div className={"auth-toast" + (toast || error ? " show" : "") + (error && !toast ? " err" : "")} role="status" aria-live="polite">
+        {error && !toast ? <X size={16} /> : <Check size={16} />}
+        <span>{toast || error}</span>
+      </div>
+
+      <div className={"auth-card " + (loginActive ? "login" : "signup")}>
+        {/* SIGN IN */}
+        <div className={"auth-form-wrap sign-in " + (loginActive ? "active" : "exit-left")}>
+          <div className="brand-header">
+            <img src={monogramImg} alt="Ballonfly Logo" className="brand-logo" draggable="false" />
+            <h1 className="brand-name"><span className="brand-wordmark" role="img" aria-label="Ballonfly"><img className="wm-ballon" src={wmBallon} alt="" draggable="false" /><img className="wm-fly" src={wmFly} alt="" draggable="false" /></span></h1>
+          </div>
+          <h2 className="auth-title">Welcome Back</h2>
+          <p className="auth-subtitle">Login to continue your journey</p>
+
+          <form onSubmit={submit} noValidate>
+            <div className="input-group">
+              <span className="input-icon"><Mail size={15} /></span>
+              <input type="email" placeholder="Email Address" value={email} onChange={(e) => setEmail(e.target.value)} autoComplete="email" />
+            </div>
+            <div className="input-group password-group">
+              <span className="input-icon"><Lock size={15} /></span>
+              <input type={showPass ? "text" : "password"} placeholder="Password" value={password} onChange={(e) => setPassword(e.target.value)} autoComplete="current-password" />
+              <button type="button" className="eye-btn" onClick={() => setShowPass((v) => !v)} aria-label="Show password">
+                {showPass ? <EyeOff size={16} /> : <Eye size={16} />}
+              </button>
+            </div>
+            <div className="form-options">
+              <label className="checkbox-container">
+                <input type="checkbox" checked={remember} onChange={(e) => setRemember(e.target.checked)} />
+                <span className="checkmark"></span>
+                <span>Remember me</span>
+              </label>
+              <button type="button" className="forgot-pass" onClick={() => showToast("Password reset abhi available nahi hai")}>Forgot Password?</button>
+            </div>
+            <button type="submit" className="submit-btn" disabled={loading}>
+              {loading && loginActive ? <Loader2 size={16} className="spin" /> : null}Login
+            </button>
+          </form>
+
+          <div className="card-footer">
+            <span className="footer-text">Don't have an account?</span>
+            <button type="button" className="action-circle-btn" onClick={() => switchMode("signup")} title="Go to Sign Up"><Plus size={16} /></button>
+          </div>
         </div>
 
-        <div>
-          {mode === "signup" && (
-            <div className="auth-field">
-              <label>Naam</label>
-              <div className="auth-input">
-                <User size={16} />
-                <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Aapka naam" />
-              </div>
-            </div>
-          )}
-          <div className="auth-field">
-            <label>Email</label>
-            <div className="auth-input">
-              <Mail size={16} />
-              <input
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                onKeyDown={(e) => e.key === "Enter" && submit(e)}
-                placeholder="aap@example.com"
-              />
-            </div>
+        {/* SIGN UP */}
+        <div className={"auth-form-wrap sign-up " + (!loginActive ? "active" : "")}>
+          <div className="brand-header">
+            <img src={monogramImg} alt="Ballonfly Logo" className="brand-logo" draggable="false" />
+            <h1 className="brand-name"><span className="brand-wordmark" role="img" aria-label="Ballonfly"><img className="wm-ballon" src={wmBallon} alt="" draggable="false" /><img className="wm-fly" src={wmFly} alt="" draggable="false" /></span></h1>
           </div>
-          <div className="auth-field">
-            <label>Password</label>
-            <div className="auth-input">
-              <Lock size={16} />
-              <input
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                onKeyDown={(e) => e.key === "Enter" && submit(e)}
-                placeholder="••••••••"
-              />
+          <h2 className="auth-title">Create Account</h2>
+          <p className="auth-subtitle">Sign up to get started with Ballonfly</p>
+
+          <form onSubmit={submit} noValidate>
+            <div className="input-group">
+              <span className="input-icon"><User size={15} /></span>
+              <input type="text" placeholder="Full Name" value={name} onChange={(e) => setName(e.target.value)} autoComplete="name" />
             </div>
+            <div className="input-group">
+              <span className="input-icon"><Mail size={15} /></span>
+              <input type="email" placeholder="Email Address" value={email} onChange={(e) => setEmail(e.target.value)} autoComplete="email" />
+            </div>
+            <div className="input-group password-group">
+              <span className="input-icon"><Lock size={15} /></span>
+              <input type={showPass ? "text" : "password"} placeholder="Password" value={password} onChange={(e) => setPassword(e.target.value)} autoComplete="new-password" />
+              <button type="button" className="eye-btn" onClick={() => setShowPass((v) => !v)} aria-label="Show password">
+                {showPass ? <EyeOff size={16} /> : <Eye size={16} />}
+              </button>
+            </div>
+            <div className="input-group password-group">
+              <span className="input-icon"><Lock size={15} /></span>
+              <input type={showConfirm ? "text" : "password"} placeholder="Confirm Password" value={confirm} onChange={(e) => setConfirm(e.target.value)} autoComplete="new-password" />
+              <button type="button" className="eye-btn" onClick={() => setShowConfirm((v) => !v)} aria-label="Show password">
+                {showConfirm ? <EyeOff size={16} /> : <Eye size={16} />}
+              </button>
+            </div>
+            <div className="form-options">
+              <label className="checkbox-container">
+                <input type="checkbox" checked={agree} onChange={(e) => setAgree(e.target.checked)} />
+                <span className="checkmark"></span>
+                <span>I agree to the Terms</span>
+              </label>
+            </div>
+            <button type="submit" className="submit-btn" disabled={loading}>
+              {loading && !loginActive ? <Loader2 size={16} className="spin" /> : null}Sign Up
+            </button>
+          </form>
+
+          <div className="card-footer">
+            <span className="footer-text">Already have an account?</span>
+            <button type="button" className="action-circle-btn" onClick={() => switchMode("login")} title="Back to Login"><ArrowLeft size={16} /></button>
           </div>
-
-          {error && <div className="auth-error">⚠ {error}</div>}
-
-          <button
-            className="auth-submit"
-            type="button"
-            disabled={loading}
-            onClick={submit}
-          >
-            {loading && <Loader2 size={16} className="spin" />}
-            {loading ? "Please wait..." : mode === "login" ? "Log In" : "Create Account"}
-          </button>
         </div>
       </div>
     </div>
@@ -2602,9 +2791,2049 @@ function MessagesView({ conversations, activeId, onOpenChat, onBack, onSend, cur
   }
 
   return (
-    <div>
-
-      </div>
-);
+    <div className="dm-list">
+      <h2 className="settings-title">Messages</h2>
+      {conversations.map((c) => {
+        const last = c.messages[c.messages.length - 1];
+        return (
+          <button key={c.id} className="dm-row" onClick={() => onOpenChat(c.id)}>
+            <Avatar name={c.user} size={44} />
+            <div className="dm-row-text">
+              <span className="dm-row-name">{c.user}</span>
+              <span className="dm-row-last">{last ? last.text : "Koi message nahi"}</span>
+            </div>
+            {c.unread > 0 && <span className="nav-badge">{c.unread}</span>}
+          </button>
+        );
+      })}
+    </div>
+  );
 }
-export default App;
+
+let audioCtx = null;
+let seenNotifs = { token: "", ids: null };
+function unlockAudio() {
+  try {
+    if (!audioCtx) {
+      const AC = window.AudioContext || window.webkitAudioContext;
+      if (!AC) return;
+      audioCtx = new AC();
+    }
+    if (audioCtx.state === "suspended") audioCtx.resume();
+  } catch (e) {}
+}
+if (typeof window !== "undefined") {
+  ["touchstart", "click", "keydown"].forEach((ev) =>
+    window.addEventListener(ev, unlockAudio, { passive: true })
+  );
+}
+function playDing() {
+  try {
+    unlockAudio();
+    if (!audioCtx || audioCtx.state !== "running") return;
+    const t = audioCtx.currentTime;
+    [880, 1318].forEach((freq, i) => {
+      const start = t + i * 0.18;
+      const o = audioCtx.createOscillator();
+      const g = audioCtx.createGain();
+      o.type = "sine";
+      o.frequency.value = freq;
+      g.gain.setValueAtTime(0.0001, start);
+      g.gain.exponentialRampToValueAtTime(0.3, start + 0.02);
+      g.gain.exponentialRampToValueAtTime(0.0001, start + 0.4);
+      o.connect(g);
+      g.connect(audioCtx.destination);
+      o.start(start);
+      o.stop(start + 0.45);
+    });
+    if (navigator.vibrate) navigator.vibrate(200);
+  } catch (e) {}
+}
+
+function NotificationsView({ notifications, onMarkAllRead }) {
+
+
+  const iconFor = (type) => {
+    if (type === "like") return <Heart size={18} fill="currentColor" />;
+    if (type === "comment") return <MessageCircle size={18} />;
+    return <UserPlus size={18} />;
+  };
+  const colorFor = (type) => {
+    if (type === "like") return "#FF4D6D";
+    if (type === "comment") return "#3B82F6";
+    return "#00E5FF";
+  };
+  const unread = notifications.filter((n) => !n.read).length;
+
+  return (
+    <div className="notif-view">
+      <div className="notif-head">
+        <h2 className="settings-title">Notifications</h2>
+        {unread > 0 && (
+          <button className="notif-markread" onClick={onMarkAllRead}>
+            <Check size={14} /> Mark all read
+          </button>
+        )}
+      </div>
+      <div className="settings-section notif-section">
+        {notifications.length === 0 && (
+          <div className="notif-row">
+            <div className="notif-text">
+              <span>Abhi koi notification nahi hai.</span>
+            </div>
+          </div>
+        )}
+        {notifications.length === 0 && <div className="notif-time" style={{ padding: 16 }}>Abhi koi notification nahi hai</div>}
+        {notifications.map((n) => (
+          <div key={n.id} className={"notif-row" + (n.read ? "" : " unread")}>
+            <Avatar name={n.user} size={40} />
+            <div className="notif-icon" style={{ color: colorFor(n.type) }}>
+              {iconFor(n.type)}
+            </div>
+            <div className="notif-text">
+              <span><strong>{n.user}</strong> {n.text}</span>
+              <span className="notif-time">{n.time} ago</span>
+            </div>
+            {!n.read && <span className="notif-dot" />}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function SettingsView({ user, onLogout }) {
+  const [notifLikes, setNotifLikes] = useState(true);
+  const [notifComments, setNotifComments] = useState(true);
+  const [notifFollows, setNotifFollows] = useState(true);
+  const [privateAccount, setPrivateAccount] = useState(false);
+  const [autoplay, setAutoplay] = useState(true);
+  const [dataSaver, setDataSaver] = useState(false);
+
+  return (
+    <div className="settings-view">
+      <h2 className="settings-title">Settings</h2>
+
+      <div className="settings-section">
+        <span className="settings-heading">Account</span>
+        <div className="setting-row">
+          <div className="setting-row-text">
+            <span className="setting-label">Name</span>
+            <span className="setting-sub">{user?.name || "You"}</span>
+          </div>
+          <ChevronRight size={18} />
+        </div>
+        <div className="setting-row">
+          <div className="setting-row-text">
+            <span className="setting-label">Email</span>
+            <span className="setting-sub">{user?.email || "not set"}</span>
+          </div>
+          <ChevronRight size={18} />
+        </div>
+        <div className="setting-row">
+          <div className="setting-row-text">
+            <span className="setting-label">Change password</span>
+          </div>
+          <ChevronRight size={18} />
+        </div>
+      </div>
+
+      <div className="settings-section">
+        <span className="settings-heading">Notifications</span>
+        <ToggleRow label="Likes" sub="Jab koi aapke post ko like kare" checked={notifLikes} onChange={setNotifLikes} />
+        <ToggleRow label="Comments" sub="Jab koi comment kare" checked={notifComments} onChange={setNotifComments} />
+        <ToggleRow label="New followers" sub="Jab koi aapko follow kare" checked={notifFollows} onChange={setNotifFollows} />
+      </div>
+
+      <div className="settings-section">
+        <span className="settings-heading">Privacy</span>
+        <ToggleRow
+          label="Private account"
+          sub="Sirf followers hi aapke posts dekh sakein"
+          checked={privateAccount}
+          onChange={setPrivateAccount}
+        />
+      </div>
+
+      <div className="settings-section">
+        <span className="settings-heading">Playback</span>
+        <ToggleRow label="Autoplay videos" sub="Feed scroll karte waqt video khud chale" checked={autoplay} onChange={setAutoplay} />
+        <ToggleRow label="Data saver" sub="Kam quality mein videos chalayein (mobile data bachane ke liye)" checked={dataSaver} onChange={setDataSaver} />
+      </div>
+
+      <div className="settings-section">
+        <span className="settings-heading">General</span>
+        <div className="setting-row">
+          <div className="setting-row-text">
+            <span className="setting-label">Language</span>
+            <span className="setting-sub">English</span>
+          </div>
+          <ChevronRight size={18} />
+        </div>
+        <div className="setting-row">
+          <div className="setting-row-text">
+            <span className="setting-label">Help & Support</span>
+          </div>
+          <ChevronRight size={18} />
+        </div>
+      </div>
+
+      <div className="settings-section">
+        <button className="setting-row danger-row" onClick={onLogout}>
+          <LogOut size={18} />
+          <span>Log Out</span>
+        </button>
+        <button className="setting-row danger-row">
+          <Trash2 size={18} />
+          <span>Delete Account</span>
+        </button>
+      </div>
+    </div>
+  );
+}
+
+export default function App() {
+
+  const [user, setUser] = useState(null);
+  const [view, setView] = useState(() => {
+    try { return "videos"; } catch (e) { return "videos"; }
+  });
+  const [videoQuery, setVideoQuery] = useState("");
+  const [posts, setPosts] = useState([]);
+  const [postsLoading, setPostsLoading] = useState(true);
+  const [postsError, setPostsError] = useState("");
+  const [postsRetry, setPostsRetry] = useState(0);
+  const [postsNextPage, setPostsNextPage] = useState(2);
+  const [postsHasMore, setPostsHasMore] = useState(false);
+  const [postsMoreLoading, setPostsMoreLoading] = useState(false);
+  const [profilePosts, setProfilePosts] = useState([]);
+  const [profilePostsLoading, setProfilePostsLoading] = useState(true);
+  const [profilePostsError, setProfilePostsError] = useState("");
+  const [profilePostsRetry, setProfilePostsRetry] = useState(0);
+  const [savedPosts, setSavedPosts] = useState([]);
+  const [savedPostsLoading, setSavedPostsLoading] = useState(true);
+  const [savedPostsError, setSavedPostsError] = useState("");
+  const [savedPostsRetry, setSavedPostsRetry] = useState(0);
+  const [profileTab, setProfileTab] = useState("posts");
+  const [shorts, setShorts] = useState([]);
+  const [shortsLoading, setShortsLoading] = useState(true);
+  const [shortsError, setShortsError] = useState("");
+  const [shortsRetry, setShortsRetry] = useState(0);
+  const [liked, toggleLike, setLiked] = useLikeState();
+  const [savedPostIds, setSavedPostIds] = useState(new Set());
+  const [savingPostIds, setSavingPostIds] = useState(new Set());
+  const [shareToast, setShareToast] = useState(false);
+  const shareToastTimerRef = useRef(null);
+  const [following, setFollowing] = useState(new Set());
+  const [followingIds, setFollowingIds] = useState(new Set());
+  const [profileFollowers, setProfileFollowers] = useState(0);
+  const [showUpload, setShowUpload] = useState(false);
+  const [commentsByPost, setCommentsByPost] = useState({});
+  const [activeCommentsPost, setActiveCommentsPost] = useState(null);
+  const [selectedProfilePost, setSelectedProfilePost] = useState(null);
+  const [commentsByShort, setCommentsByShort] = useState({});
+  const [activeCommentsShort, setActiveCommentsShort] = useState(null);
+  const viewedShortsRef = useRef(new Set());
+  const [notifications, setNotifications] = useState([]);
+  const [searchQuery, setSearchQuery] = useState("");
+  const filteredPosts = searchQuery.trim()
+    ? posts.filter(
+        (p) =>
+          p.caption.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          p.user.toLowerCase().includes(searchQuery.toLowerCase())
+      )
+    : posts;
+  const unreadCount = notifications.filter((n) => !n.read).length;
+  const markAllRead = () => {
+    setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
+    if (!user?.token) return;
+    fetch(API_BASE + "/notifications/read-all", {
+      method: "POST",
+      headers: { Authorization: "Bearer " + user.token },
+    }).catch(() => {});
+  };
+
+  const onNotificationsView = view === "notifications";
+  useEffect(() => {
+    if (!user?.token) {
+      setNotifications([]);
+      return undefined;
+    }
+    let cancelled = false;
+    const load = () => {
+      fetch(API_BASE + "/notifications", { headers: { Authorization: "Bearer " + user.token } })
+        .then((res) => (res.ok ? res.json() : Promise.reject(new Error("failed"))))
+        .then((data) => {
+          if (!cancelled) {
+            const list = data.notifications || [];
+            const prevSeen = seenNotifs.token === user.token ? seenNotifs.ids : null;
+            const fresh = !!prevSeen && list.some((n) => !n.read && !prevSeen.has(n._id));
+            seenNotifs = { token: user.token, ids: new Set(list.map((n) => n._id)) };
+            if (fresh) playDing();
+            setNotifications(list.map(notificationFromApi));
+          }
+        })
+        .catch(() => {});
+    };
+    load();
+    const timer = setInterval(() => {
+      if (!document.hidden) load();
+    }, 30000);
+    return () => {
+      cancelled = true;
+      clearInterval(timer);
+    };
+  }, [user?.token, onNotificationsView]);
+
+  const [conversations, setConversations] = useState(seedConversations);
+  const [activeChatId, setActiveChatId] = useState(null);
+  const unreadMsgCount = conversations.reduce((sum, c) => sum + c.unread, 0);
+
+  useEffect(() => {
+    if (!user) return;
+    let cancelled = false;
+    setShortsLoading(true);
+    setShortsError("");
+
+    fetch(API_BASE + "/shorts")
+      .then(async (res) => {
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || "Could not load videos.");
+        return data;
+      })
+      .then((data) => {
+        if (cancelled) return;
+        const list = Array.isArray(data)
+          ? data
+          : Array.isArray(data.shorts)
+            ? data.shorts
+            : [];
+        setShorts(list.map(normalizeShort));
+      })
+      .catch((err) => {
+        if (cancelled) return;
+        setShortsError(err.message || "Could not load videos. Please try again.");
+        console.error("Shorts fetch failed:", err);
+      })
+      .finally(() => {
+        if (!cancelled) setShortsLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [user, shortsRetry]);
+
+  useEffect(() => {
+    if (!user?.token) return;
+    let cancelled = false;
+    const pageSize = 10;
+    setPostsLoading(true);
+    setPostsError("");
+
+    fetch(`${API_BASE}/posts?page=1&limit=${pageSize}`, {
+      headers: { Authorization: "Bearer " + user.token },
+    })
+      .then(async (res) => {
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(data.error || "Could not load posts.");
+        return data;
+      })
+      .then((data) => {
+        if (cancelled) return;
+        const rawPosts = extractPostList(data);
+        const normalized = rawPosts.map(normalizePost);
+        setPosts(normalized);
+        syncPostFlags(normalized, setLiked, setSavedPostIds);
+
+        const pagination = data.pagination || data.meta || {};
+        const hasMore = data.hasMore ?? pagination.hasMore ?? pagination.hasNextPage ??
+          (typeof data.totalPages === "number"
+            ? 1 < data.totalPages
+            : typeof pagination.totalPages === "number"
+              ? 1 < pagination.totalPages
+              : rawPosts.length === pageSize);
+        setPostsHasMore(Boolean(hasMore));
+        setPostsNextPage(2);
+      })
+      .catch((err) => {
+        if (cancelled) return;
+        setPostsError(err.message || "Could not load posts. Please try again.");
+        console.error("Posts fetch failed:", err);
+      })
+      .finally(() => {
+        if (!cancelled) setPostsLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [user?.id, user?.token, postsRetry, setLiked]);
+
+  useEffect(() => {
+    if (!user?.id || !user?.token) return;
+    let cancelled = false;
+    setProfilePostsLoading(true);
+    setProfilePostsError("");
+
+    fetch(`${API_BASE}/posts/user/${encodeURIComponent(user.id)}`, {
+      headers: { Authorization: "Bearer " + user.token },
+    })
+      .then(async (res) => {
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(data.error || "Could not load your posts.");
+        return data;
+      })
+      .then((data) => {
+        if (cancelled) return;
+        const normalized = extractPostList(data).map(normalizePost);
+        setProfilePosts(normalized);
+        syncPostFlags(normalized, setLiked, setSavedPostIds);
+      })
+      .catch((err) => {
+        if (cancelled) return;
+        setProfilePostsError(err.message || "Could not load your posts. Please try again.");
+        console.error("Profile posts fetch failed:", err);
+      })
+      .finally(() => {
+        if (!cancelled) setProfilePostsLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [user?.id, user?.token, profilePostsRetry]);
+
+  useEffect(() => {
+    if (!user?.token || profileTab !== "saved") return;
+    let cancelled = false;
+    setSavedPostsLoading(true);
+    setSavedPostsError("");
+
+    fetch(API_BASE + "/posts/saved", {
+      headers: { Authorization: "Bearer " + user.token },
+    })
+      .then(async (res) => {
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(data.error || "Could not load saved posts.");
+        return data;
+      })
+      .then((data) => {
+        if (cancelled) return;
+        const normalized = extractPostList(data).map((post, index) => ({
+          ...normalizePost(post, index),
+          saved: true,
+        }));
+        setSavedPosts(normalized);
+        syncPostFlags(normalized, setLiked, setSavedPostIds);
+      })
+      .catch((err) => {
+        if (cancelled) return;
+        setSavedPostsError(err.message || "Could not load saved posts. Please try again.");
+        console.error("Saved posts fetch failed:", err);
+      })
+      .finally(() => {
+        if (!cancelled) setSavedPostsLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [user?.token, profileTab, savedPostsRetry]);
+
+  useEffect(() => {
+    if (!user?.token) return undefined;
+    let cancelled = false;
+    fetch(API_BASE + "/users/me/following", { headers: { Authorization: "Bearer " + user.token } })
+      .then((res) => res.json().catch(() => ({})))
+      .then((data) => {
+        if (!cancelled && Array.isArray(data.following)) setFollowingIds(new Set(data.following));
+      })
+      .catch((err) => console.error("Following fetch failed:", err));
+    if (user?.id) {
+      fetch(API_BASE + "/users/" + encodeURIComponent(user.id))
+        .then((res) => res.json().catch(() => ({})))
+        .then((data) => {
+          if (!cancelled && typeof data.followersCount === "number") setProfileFollowers(data.followersCount);
+        })
+        .catch(() => {});
+    }
+    return () => {
+      cancelled = true;
+    };
+  }, [user?.id, user?.token, view]);
+
+  const loadMorePosts = async () => {
+    if (!user?.token || postsMoreLoading || !postsHasMore) return;
+    setPostsMoreLoading(true);
+    setPostsError("");
+    const pageSize = 10;
+    const page = postsNextPage;
+    try {
+      const res = await fetch(`${API_BASE}/posts?page=${page}&limit=${pageSize}`, {
+        headers: { Authorization: "Bearer " + user.token },
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || "Could not load more posts.");
+      const rawPosts = extractPostList(data);
+      const normalized = rawPosts.map(normalizePost);
+      setPosts((previous) => {
+        const existingIds = new Set(previous.map((post) => post.id));
+        return [...previous, ...normalized.filter((post) => !existingIds.has(post.id))];
+      });
+      const pagination = data.pagination || data.meta || {};
+      const hasMore = data.hasMore ?? pagination.hasMore ?? pagination.hasNextPage ??
+        (typeof data.totalPages === "number"
+          ? page < data.totalPages
+          : typeof pagination.totalPages === "number"
+            ? page < pagination.totalPages
+            : rawPosts.length === pageSize);
+      setPostsHasMore(Boolean(hasMore));
+      setPostsNextPage(page + 1);
+      syncPostFlags(normalized, setLiked, setSavedPostIds);
+    } catch (err) {
+      setPostsError(err.message || "Could not load more posts. Please try again.");
+    } finally {
+      setPostsMoreLoading(false);
+    }
+  };
+
+  const openChat = (id) => {
+    setActiveChatId(id);
+    setConversations((prev) => prev.map((c) => (c.id === id ? { ...c, unread: 0 } : c)));
+  };
+
+  const sendMessage = (conversationId, text) => {
+    setConversations((prev) =>
+      prev.map((c) =>
+        c.id === conversationId
+          ? { ...c, messages: [...c.messages, { id: "m" + Date.now(), from: "me", text, time: "Abhi" }] }
+          : c
+      )
+    );
+  };
+
+  const updatePostEverywhere = (postId, updatePost) => {
+    const updateList = (previous) =>
+      previous.map((post) => post.id === postId ? updatePost(post) : post);
+    setPosts(updateList);
+    setProfilePosts(updateList);
+    setSavedPosts(updateList);
+    setSelectedProfilePost((post) => post?.id === postId ? updatePost(post) : post);
+  };
+
+  const addComment = async (postId, text) => {
+    if (!user?.token) throw new Error("Please sign in again to comment.");
+    const res = await fetch(API_BASE + "/posts/" + encodeURIComponent(postId) + "/comments", {
+      method: "POST",
+      headers: {
+        Authorization: "Bearer " + user.token,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ text }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data.error || "Could not post your comment. Please try again.");
+
+    const responseComment = data.comment || data.data?.comment || {};
+    const commentUser = responseComment.user && typeof responseComment.user === "object"
+      ? responseComment.user
+      : {};
+    const comment = {
+      id: String(responseComment._id || responseComment.id || "c" + Date.now()),
+      user: commentUser.username || commentUser.displayName || user.username || user.name || "You",
+      text: responseComment.text || responseComment.content || text,
+    };
+    setCommentsByPost((prev) => ({
+      ...prev,
+      [postId]: [...(prev[postId] || []), comment],
+    }));
+
+    const commentCount =
+      typeof data.commentsCount === "number"
+        ? data.commentsCount
+        : typeof data.post?.commentsCount === "number"
+          ? data.post.commentsCount
+          : typeof data.post?.comments === "number"
+            ? data.post.comments
+            : null;
+    updatePostEverywhere(postId, (post) => ({
+      ...post,
+      comments: commentCount ?? post.comments + 1,
+    }));
+  };
+
+  const toggleFollow = (user) => {
+    setFollowing((prev) => {
+      const next = new Set(prev);
+      next.has(user) ? next.delete(user) : next.add(user);
+      return next;
+    });
+  };
+
+  const toggleUserFollow = async (userId) => {
+    if (!user?.token || !userId) return;
+    const wasFollowing = followingIds.has(userId);
+    setFollowingIds((previous) => {
+      const next = new Set(previous);
+      wasFollowing ? next.delete(userId) : next.add(userId);
+      return next;
+    });
+    try {
+      const res = await fetch(API_BASE + "/users/" + encodeURIComponent(userId) + "/follow", {
+        method: "POST",
+        headers: { Authorization: "Bearer " + user.token },
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || typeof data.following !== "boolean") throw new Error(data.error || "Could not update follow.");
+      setFollowingIds((previous) => {
+        const next = new Set(previous);
+        data.following ? next.add(userId) : next.delete(userId);
+        return next;
+      });
+    } catch (err) {
+      setFollowingIds((previous) => {
+        const next = new Set(previous);
+        wasFollowing ? next.add(userId) : next.delete(userId);
+        return next;
+      });
+      console.error("Follow failed:", err);
+    }
+  };
+
+  const addShortComment = (shortId, text) => {
+    setCommentsByShort((prev) => ({
+      ...prev,
+      [shortId]: [...(prev[shortId] || []), { id: "sc" + Date.now(), user: user?.name || "You", text }],
+    }));
+  };
+
+  const toggleShortLike = async (shortId) => {
+    if (!user?.token) return;
+    const wasLiked = liked.has(shortId);
+    toggleLike(shortId);
+    setShorts((prev) => prev.map((short) =>
+      short.id === shortId
+        ? { ...short, likes: Math.max(0, short.likes + (wasLiked ? -1 : 1)) }
+        : short
+    ));
+    try {
+      const res = await fetch(API_BASE + "/shorts/" + shortId + "/like", {
+        method: "POST",
+        headers: { Authorization: "Bearer " + user.token },
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Could not update like.");
+      const likesCount = typeof data.likesCount === "number"
+        ? data.likesCount
+        : (Array.isArray(data.likes) || typeof data.likes === "number")
+          ? countValue(data.likes)
+          : null;
+      if (typeof likesCount === "number") {
+        setShorts((prev) => prev.map((s) => (s.id === shortId ? { ...s, likes: likesCount } : s)));
+      }
+    } catch (err) {
+      toggleLike(shortId);
+      setShorts((prev) => prev.map((short) =>
+        short.id === shortId
+          ? { ...short, likes: Math.max(0, short.likes + (wasLiked ? 1 : -1)) }
+          : short
+      ));
+      console.error("Short like failed:", err);
+    }
+  };
+
+  const togglePostLike = async (postId) => {
+    if (!user?.token) return;
+    const wasLiked = liked.has(postId);
+    toggleLike(postId);
+    updatePostEverywhere(postId, (post) => ({
+      ...post,
+      likes: Math.max(0, post.likes + (wasLiked ? -1 : 1)),
+    }));
+    try {
+      const res = await fetch(API_BASE + "/posts/" + encodeURIComponent(postId) + "/like", {
+        method: "POST",
+        headers: { Authorization: "Bearer " + user.token },
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || "Could not update like.");
+      const likesCount = typeof data.likesCount === "number"
+        ? data.likesCount
+        : typeof data.post?.likesCount === "number"
+          ? data.post.likesCount
+          : Array.isArray(data.likes) || typeof data.likes === "number"
+            ? countValue(data.likes)
+            : null;
+      if (typeof likesCount === "number") {
+        updatePostEverywhere(postId, (post) => ({ ...post, likes: likesCount }));
+      }
+    } catch (err) {
+      toggleLike(postId);
+      updatePostEverywhere(postId, (post) => ({
+        ...post,
+        likes: Math.max(0, post.likes + (wasLiked ? 1 : -1)),
+      }));
+      console.error("Post like failed:", err);
+    }
+  };
+
+  const togglePostSave = async (post) => {
+    if (!user?.token || savingPostIds.has(post.id)) return;
+    const currentPost =
+      posts.find((item) => item.id === post.id) ||
+      profilePosts.find((item) => item.id === post.id) ||
+      savedPosts.find((item) => item.id === post.id) ||
+      post;
+    const wasSaved = savedPostIds.has(post.id);
+    const wasInSavedFeed = savedPosts.some((item) => item.id === post.id);
+    const nextSaved = !wasSaved;
+
+    setSavingPostIds((previous) => new Set(previous).add(post.id));
+    setSavedPostIds((previous) => {
+      const next = new Set(previous);
+      nextSaved ? next.add(post.id) : next.delete(post.id);
+      return next;
+    });
+    updatePostEverywhere(post.id, (item) => ({ ...item, saved: nextSaved }));
+    setSavedPosts((previous) => nextSaved
+      ? [{ ...currentPost, saved: true }, ...previous.filter((item) => item.id !== post.id)]
+      : previous.filter((item) => item.id !== post.id));
+
+    try {
+      const res = await fetch(API_BASE + "/posts/" + encodeURIComponent(post.id) + "/save", {
+        method: "POST",
+        headers: { Authorization: "Bearer " + user.token },
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || "Could not update saved post.");
+      if (typeof data.saved !== "boolean") throw new Error("The server did not confirm the saved status.");
+
+      setSavedPostIds((previous) => {
+        const next = new Set(previous);
+        data.saved ? next.add(post.id) : next.delete(post.id);
+        return next;
+      });
+      updatePostEverywhere(post.id, (item) => ({ ...item, saved: data.saved }));
+      setSavedPosts((previous) => data.saved
+        ? [{ ...currentPost, saved: true }, ...previous.filter((item) => item.id !== post.id)]
+        : previous.filter((item) => item.id !== post.id));
+    } catch (err) {
+      setSavedPostIds((previous) => {
+        const next = new Set(previous);
+        wasSaved ? next.add(post.id) : next.delete(post.id);
+        return next;
+      });
+      updatePostEverywhere(post.id, (item) => ({ ...item, saved: wasSaved }));
+      setSavedPosts((previous) => {
+        const withoutPost = previous.filter((item) => item.id !== post.id);
+        return wasInSavedFeed
+          ? [savedPosts.find((item) => item.id === post.id) || { ...currentPost, saved: true }, ...withoutPost]
+          : withoutPost;
+      });
+      console.error("Post save failed:", err);
+    } finally {
+      setSavingPostIds((previous) => {
+        const next = new Set(previous);
+        next.delete(post.id);
+        return next;
+      });
+    }
+  };
+
+  const markShortViewed = (shortId) => {
+    if (viewedShortsRef.current.has(shortId)) return;
+    viewedShortsRef.current.add(shortId);
+    setShorts((prev) => prev.map((short) =>
+      short.id === shortId ? { ...short, views: short.views + 1 } : short
+    ));
+    fetch(API_BASE + "/shorts/" + shortId + "/view", { method: "POST" })
+      .catch((err) => console.error("Short view count failed:", err));
+  };
+
+  const addPost = (postData, fallback) => {
+    const uploaded = normalizePost(postData, Date.now(), fallback);
+    setPosts((prev) => [uploaded, ...prev.filter((post) => post.id !== uploaded.id)]);
+    setProfilePosts((prev) => [uploaded, ...prev.filter((post) => post.id !== uploaded.id)]);
+    syncPostFlags([uploaded], setLiked, setSavedPostIds);
+    setView("feed");
+  };
+
+  const onShortUploaded = (shortData, caption) => {
+    const uploaded = normalizeShort(
+      { ...shortData, caption: shortData.caption || caption || "", user: shortData.user || user?.name },
+      Date.now()
+    );
+    setShorts((prev) => [uploaded, ...prev.filter((short) => short.id !== uploaded.id)]);
+    setView("sparks");
+  };
+
+  const shareShort = async (short) => {
+    const shareUrl = short.mediaUrl || window.location.href;
+    try {
+      if (navigator.share) {
+        await navigator.share({ title: `Sparks by ${short.user}`, text: short.caption, url: shareUrl });
+      } else if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(shareUrl);
+      }
+    } catch (err) {
+      if (err.name !== "AbortError") console.error("Short share failed:", err);
+    }
+  };
+
+  const copySiteLink = async () => {
+    const siteLink = window.location.href;
+    if (navigator.clipboard?.writeText) {
+      try {
+        await navigator.clipboard.writeText(siteLink);
+        return;
+      } catch {
+        // Try the selection-based clipboard fallback below.
+      }
+    }
+
+    const input = document.createElement("textarea");
+    input.value = siteLink;
+    input.setAttribute("readonly", "");
+    input.style.position = "fixed";
+    input.style.opacity = "0";
+    document.body.appendChild(input);
+    input.select();
+    const copied = document.execCommand("copy");
+    input.remove();
+    if (!copied) throw new Error("Clipboard access is unavailable.");
+  };
+
+  const sharePost = async (post) => {
+    try {
+      if (navigator.share) {
+        await navigator.share({
+          title: `Ballonfly post by ${post.user}`,
+          text: post.caption,
+          url: window.location.href,
+        });
+      } else {
+        await copySiteLink();
+        setShareToast(true);
+        window.clearTimeout(shareToastTimerRef.current);
+        shareToastTimerRef.current = window.setTimeout(() => setShareToast(false), 2200);
+      }
+    } catch (err) {
+      if (err.name !== "AbortError") console.error("Post share failed:", err);
+    }
+  };
+
+  const { t } = useT();
+
+  const navItems = [
+    { key: "videos", icon: Home, label: t("nav.home") },
+    { key: "shorts", icon: Play, label: t("nav.reels") },
+    { key: "sparks", icon: Sparkles, label: t("nav.sparks") },
+    { key: "upload", icon: PlusSquare, label: t("nav.create") },
+    { key: "messages", icon: Send, label: t("nav.dm"), badge: unreadMsgCount },
+    { key: "notifications", icon: Bell, label: t("nav.notifications"), badge: unreadCount },
+    { key: "profile", icon: User, label: t("nav.profile") },
+    { key: "settings", icon: Settings, label: t("nav.settings") },
+  ];
+
+  if (!user) {
+    return <AuthScreen onAuth={setUser} />;
+  }
+
+  return (
+    <div className="app-root">
+      <style>{`
+        .app-root {
+          --bg: #000F1D;
+          --surface: #00223D;
+          --surface-2: #032845;
+          --border: #04325A;
+          --text: #FFFFFF;
+          --text-muted: #91D8FC;
+          --accent: #00E5FF;
+          --accent-2: #01C9FE;
+          --gradient-cta: linear-gradient(90deg, #00EFFE, #01C9FE);
+          --on-accent: #00121F;
+          --card-border: #012743;
+          font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+          background: var(--bg);
+          color: var(--text);
+          min-height: 100vh;
+          display: flex;
+          max-width: 100%;
+          box-sizing: border-box;
+        }
+        .app-root * { box-sizing: border-box; }
+        .app-root h1, .app-root h2, .app-root h3 {
+          font-family: 'Space Grotesk', 'Inter', sans-serif;
+          margin: 0;
+        }
+        .sidebar {
+          width: 220px;
+          flex-shrink: 0;
+          border-right: 1px solid var(--border);
+          padding: 24px 16px;
+          display: flex;
+          flex-direction: column;
+          gap: 4px;
+        }
+        .brand {
+          display: flex;
+          align-items: center;
+          gap: 2px;
+          margin-bottom: 22px;
+          padding-left: 2px;
+        }
+        .brand-bf { height: 46px; width: auto; display: block; }
+        .brand-wm { height: 22px; width: auto; display: block; }
+        .nav-item {
+          display: flex;
+          align-items: center;
+          gap: 12px;
+          padding: 11px 12px;
+          border-radius: 10px;
+          border: none;
+          background: transparent;
+          color: var(--text-muted);
+          font-size: 15px;
+          font-weight: 500;
+          cursor: pointer;
+          text-align: left;
+          transition: background 0.15s, color 0.15s;
+        }
+        .nav-item:hover { background: var(--surface); color: var(--text); }
+        .nav-item.active { background: var(--surface-2); color: var(--text); }
+        .nav-item { position: relative; }
+        .nav-item.active svg { color: var(--accent); }
+        .logout-item { margin-top: auto; color: #E8546E; }
+        .vup { max-width: 640px; margin: 0 auto; padding: 14px 16px 90px; }
+        .vup-header { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; }
+        .vup-header h2 { font-size: 18px; margin: 0; }
+        .vup-top { display: flex; gap: 12px; margin-bottom: 12px; }
+        .vup-thumb {
+          position: relative; flex: 0 0 120px; height: 170px; border-radius: 12px; overflow: hidden;
+          background: var(--surface-2); border: 1px solid var(--border); color: var(--text-muted);
+          display: grid; place-items: center; cursor: pointer; padding: 0;
+        }
+        .vup-thumb video { width: 100%; height: 100%; object-fit: cover; pointer-events: none; }
+        .vup-pick { font-size: 13px; padding: 8px; text-align: center; }
+        .vup-dur {
+          position: absolute; right: 6px; bottom: 6px; background: rgba(0,0,0,0.7); color: #fff;
+          font-size: 11px; padding: 2px 6px; border-radius: 6px;
+        }
+        .vup-title, .vup-desc, .vup-input {
+          width: 100%; box-sizing: border-box; background: var(--surface-2); color: var(--text);
+          border: 1px solid var(--border); border-radius: 10px; padding: 10px 12px;
+          font-size: 14px; font-family: inherit; outline: none; resize: none; margin-bottom: 12px;
+        }
+        .vup-title { flex: 1; height: 170px; margin-bottom: 0; }
+        .vup-desc { height: 110px; }
+        .vup-row {
+          display: flex; align-items: center; justify-content: space-between; gap: 12px;
+          padding: 12px 4px; border-bottom: 1px solid var(--border); font-size: 14px;
+        }
+        .vup-row select {
+          background: var(--surface-2); color: var(--text); border: 1px solid var(--border);
+          border-radius: 8px; padding: 6px 8px; font-size: 13px; max-width: 55%;
+        }
+        .vup-row input[type="checkbox"] { width: 20px; height: 20px; accent-color: var(--accent); }
+        .vup-error { color: var(--accent); font-size: 12px; margin: 12px 0 0; }
+        .vup-progress { height: 6px; background: var(--surface-2); border-radius: 6px; overflow: hidden; margin: 12px 0 0; }
+        .vup-progress div { height: 100%; background: var(--accent); transition: width 0.2s; }
+        .vup .post-submit { margin-top: 16px; width: 100%; }
+        .vup-done { display: flex; flex-direction: column; gap: 12px; align-items: center; text-align: center; padding: 60px 10px; }
+        .vup-entry {
+          width: 100%; margin-bottom: 12px; padding: 10px 12px; border-radius: 10px; cursor: pointer;
+          background: var(--surface-2); color: var(--text); border: 1px dashed var(--border);
+          display: flex; align-items: center; justify-content: center; gap: 8px; font-size: 13px;
+        }
+        .home-tabs { display: flex; gap: 10px; max-width: 760px; margin: 0 auto 12px; padding: 12px 14px 0; }
+        .home-tabs button {
+          flex: 1; height: 40px; padding: 0 12px; border-radius: 999px; border: 1px solid var(--card-border);
+          background: var(--surface); color: var(--text); font-weight: 500; font-size: 14px; cursor: pointer;
+        }
+        .home-tabs button.active {
+          color: var(--on-accent); border-color: transparent; font-weight: 700;
+          background: var(--gradient-cta);
+        }
+        .vf { max-width: 760px; margin: 0 auto; padding: 12px 14px 90px; }
+        .vf-chips { display: flex; gap: 10px; overflow-x: auto; padding-bottom: 14px; scrollbar-width: none; }
+        .vf-chips::-webkit-scrollbar { display: none; }
+        .vf-chips button {
+          flex: 0 0 auto; height: 38px; padding: 0 18px; border-radius: 999px; border: 1px solid var(--card-border);
+          background: var(--surface); color: var(--text); font-size: 14px; font-weight: 500; cursor: pointer; white-space: nowrap;
+        }
+        .vf-chips button.active { background: var(--gradient-cta); color: var(--on-accent); border-color: transparent; font-weight: 700; }
+        .vf-card {
+          display: grid; grid-template-columns: 40px 1fr auto; column-gap: 12px; row-gap: 10px; align-items: start; width: 100%; text-align: left; padding: 0; margin-bottom: 22px;
+          cursor: pointer; background: none; border: 0; border-radius: 0; overflow: visible; color: var(--text);
+        }
+        .vf-chav { width: 40px; height: 40px; border-radius: 50%; display: grid; place-items: center; font-weight: 700; font-size: 16px; color: var(--on-accent); background: linear-gradient(135deg, #00CFFF, #8A42FF); }
+        .vf-card:active { opacity: 0.85; }
+        .vf-thumb { position: relative; grid-column: 1 / -1; width: 100%; aspect-ratio: 16 / 9; background: var(--surface); overflow: hidden; border-radius: 14px; }
+        .vf-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+        .vf-dur {
+          position: absolute; right: 6px; bottom: 6px; z-index: 1; background: rgba(0, 0, 0, 0.78); color: #fff;
+          font-size: 11.5px; font-weight: 600; padding: 1px 6px; border-radius: 6px;
+        }
+        .vf-info { display: flex; gap: 10px; padding: 12px; align-items: flex-start; }
+        .vf-avatar {
+          flex: 0 0 36px; height: 36px; border-radius: 50%; display: grid; place-items: center;
+          font-weight: 700; font-size: 14px; color: var(--on-accent); background: linear-gradient(135deg, #00CFFF, #8A42FF);
+        }
+        .vf-meta { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; padding-top: 2px; }
+        .vf-meta strong {
+          font-size: 14.5px; font-weight: 500; line-height: 1.3; display: -webkit-box; -webkit-line-clamp: 2;
+          -webkit-box-orient: vertical; overflow: hidden;
+        }
+        .vf-meta span { font-size: 12.5px; color: var(--text-muted); }
+        .vf-meta .vf-author { color: var(--text-muted); display: flex; align-items: center; gap: 5px; }
+        .vf-tick { width: 14px; height: 14px; color: #03D4F7; flex-shrink: 0; }
+        .vf-stats i { font-style: normal; margin: 0 7px; }
+        .vf-more { flex: 0 0 auto; background: none; border: 0; padding: 4px; color: var(--text); cursor: pointer; display: grid; place-items: center; }
+        .vf-toast {
+          position: fixed; left: 50%; bottom: 84px; transform: translateX(-50%); z-index: 50; background: #00182c;
+          border: 1px solid var(--accent); color: var(--text); padding: 10px 18px; border-radius: 22px; font-size: 14px;
+        }
+        .vf-skel .vf-thumb, .vf-skel .vf-avatar, .vf-skel .vf-meta strong, .vf-skel .vf-meta span {
+          background: linear-gradient(90deg, var(--surface) 25%, #04304f 50%, var(--surface) 75%);
+          background-size: 200% 100%; animation: vf-shimmer 1.3s infinite; border-radius: 8px; color: transparent;
+        }
+        @keyframes vf-shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
+        .app-header { display: none; }
+        .vf-search { display: none; align-items: center; gap: 10px; height: 44px; padding: 0 18px; margin-bottom: 14px; border-radius: 999px; background: var(--surface); border: 1px solid var(--border); color: var(--text-muted); }
+        .vf-search input { flex: 1; background: transparent; border: 0; outline: 0; color: var(--text); font-size: 14px; min-width: 0; }
+        @media (min-width: 721px) { .vf-search { display: flex; } }
+        .vf-overlay {
+          position: fixed; inset: 0; z-index: 1000; background: rgba(8, 6, 12, 0.88);
+          display: flex; align-items: flex-start; justify-content: center; overflow-y: auto;
+        }
+        .vf-player { position: relative; width: 100%; max-width: 640px; padding: 0 0 40px; }
+        .vf-player video { width: 100%; aspect-ratio: 16 / 9; background: #000; display: block; }
+        .vf-close {
+          position: absolute; top: 10px; right: 10px; z-index: 2; width: 34px; height: 34px; border-radius: 50%;
+          border: none; background: rgba(0, 0, 0, 0.6); color: #fff; display: grid; place-items: center; cursor: pointer;
+        }
+        .vf-player h3 { font-size: 17px; margin: 14px 16px 4px; line-height: 1.35; }
+        .vf-sub { font-size: 12.5px; color: var(--text-muted); margin: 0 16px 12px; }
+        .vf-actions { display: flex; gap: 8px; margin: 0 16px 12px; }
+        .vf-actions button {
+          display: flex; align-items: center; gap: 6px; padding: 8px 16px; border-radius: 999px; cursor: pointer;
+          background: var(--surface-2); border: 1px solid var(--border); color: var(--text); font-size: 13px;
+        }
+        .vf-actions button.active { background: var(--gradient-cta); border-color: var(--accent); color: var(--on-accent); }
+        .vf-desc { margin: 0 16px 10px; font-size: 14px; line-height: 1.5; white-space: pre-wrap; }
+        .vf-tags { margin: 0 16px; display: flex; flex-wrap: wrap; gap: 8px; }
+        .vf-tags span { color: var(--accent-2); font-size: 13px; }
+        .vf-comments { margin: 18px 16px 0; padding-top: 14px; border-top: 1px solid var(--border); }
+        .vf-comments h4 { margin: 0 0 12px; font-size: 14.5px; }
+        .vf-muted { color: var(--text-muted); font-size: 13px; margin: 8px 0; }
+        .vf-cerr { color: var(--accent); font-size: 12px; margin: 8px 0; }
+        .vf-cform { display: flex; gap: 8px; margin-bottom: 14px; }
+        .vf-cform input {
+          flex: 1; min-width: 0; background: var(--surface-2); color: var(--text); border: 1px solid var(--border);
+          border-radius: 999px; padding: 10px 14px; font-size: 14px; outline: none;
+        }
+        .vf-cform button {
+          padding: 0 18px; border-radius: 999px; border: none; cursor: pointer; font-weight: 600; font-size: 13px;
+          color: var(--on-accent); background: var(--gradient-cta);
+        }
+        .vf-cform button:disabled { opacity: 0.45; cursor: default; }
+        .vf-comment { display: flex; gap: 10px; align-items: flex-start; margin-bottom: 14px; }
+        .vf-avatar-sm { flex: 0 0 30px; height: 30px; font-size: 12px; }
+        .vf-ctext { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+        .vf-ctext strong { font-size: 13px; }
+        .vf-ctext em { font-style: normal; font-weight: 400; color: var(--text-muted); font-size: 11.5px; margin-left: 6px; }
+        .vf-ctext span { font-size: 14px; line-height: 1.4; word-break: break-word; }
+        .vf-cdel { background: transparent; border: none; color: var(--text-muted); cursor: pointer; padding: 4px; }
+        .cm { max-width: 640px; margin: 0 auto; padding: 12px 16px 90px; }
+        .cm-h { font-size: 18px; margin: 4px 0 14px; }
+        .cm-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 18px; }
+        .cm-card {
+          position: relative; overflow: hidden; text-align: left; border: none; border-radius: 18px; cursor: pointer;
+          min-height: 118px; padding: 14px; color: #fff; display: flex; flex-direction: column; gap: 4px;
+          justify-content: flex-end; transition: transform 0.15s;
+        }
+        .cm-card:active { transform: scale(0.97); }
+        .cm-card strong { font-size: 16px; position: relative; z-index: 1; }
+        .cm-count { font-size: 12px; opacity: 0.9; position: relative; z-index: 1; }
+        .cm-letter {
+          position: absolute; right: -6px; top: -18px; font-size: 96px; font-weight: 800;
+          color: rgba(255, 255, 255, 0.18); line-height: 1; pointer-events: none;
+        }
+        .cm-skel {
+          background: linear-gradient(90deg, var(--surface-2) 25%, #362e44 50%, var(--surface-2) 75%);
+          background-size: 200% 100%; animation: vf-shimmer 1.3s infinite;
+        }
+        .cm-join {
+          align-self: flex-start; margin-top: 6px; padding: 7px 18px; border-radius: 999px; border: none; cursor: pointer;
+          font-size: 13px; font-weight: 700; color: var(--on-accent); background: var(--gradient-cta);
+          position: relative; z-index: 1;
+        }
+        .cm-join.sm { padding: 5px 14px; font-size: 12px; }
+        .cm-card .cm-join { background: rgba(0, 0, 0, 0.35); }
+        .cm-join.joined { background: var(--surface-2); color: var(--text-muted); border: 1px solid var(--border); }
+        .cm-card .cm-join.joined { background: rgba(255, 255, 255, 0.25); color: #fff; border: none; }
+        .cm-row {
+          display: flex; align-items: center; gap: 12px; padding: 12px 4px; cursor: pointer;
+          border-bottom: 1px solid var(--border);
+        }
+        .cm-row .cm-join { margin-top: 0; align-self: center; }
+        .cm-rowtext { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+        .cm-rowtext strong { font-size: 14.5px; }
+        .cm-rowtext span { font-size: 12px; color: var(--text-muted); }
+        .cm-head { display: flex; align-items: center; gap: 10px; margin-bottom: 4px; }
+        .cm-title { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+        .cm-title strong { font-size: 17px; }
+        .cm-title span { font-size: 12px; color: var(--text-muted); }
+        .cm-head .cm-join { margin-top: 0; }
+        .vf-mine .vf-chips { display: none; }
+        .pc { padding: 0 12px 6px; }
+        .pc-stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin: 4px 0 12px; text-align: center; }
+        .pc-stats div { display: flex; flex-direction: column; gap: 2px; background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 10px 2px; }
+        .pc-stats strong { font-size: 16px; }
+        .pc-stats span { font-size: 11px; color: var(--text-muted); }
+        .pc-bio { font-size: 14px; color: var(--text-muted); margin: 0 0 12px; line-height: 1.45; }
+        .pc-actions { display: flex; gap: 8px; margin-bottom: 12px; }
+        .pc-actions button {
+          flex: 1; display: flex; align-items: center; justify-content: center; gap: 6px; padding: 10px 0;
+          border-radius: 12px; border: 1px solid var(--border); background: var(--surface-2); color: var(--text);
+          font-size: 13.5px; font-weight: 600; cursor: pointer;
+        }
+        .pc-actions button:disabled { opacity: 0.5; }
+        .pc-actions .pc-menu { flex: 0 0 46px; font-size: 18px; }
+        .pc-toggle {
+          width: 100%; display: flex; justify-content: space-between; align-items: center; padding: 12px 14px;
+          background: var(--surface); border: 1px solid var(--border); border-radius: 12px; color: var(--text);
+          font-size: 14px; font-weight: 600; cursor: pointer; margin-bottom: 12px;
+        }
+        .pc-toast {
+          position: fixed; left: 50%; bottom: 90px; transform: translateX(-50%); z-index: 3000;
+          background: var(--text); color: var(--bg); padding: 10px 18px; border-radius: 999px; font-size: 13px; font-weight: 600;
+        }
+        .pc-page { position: fixed; inset: 0; z-index: 2000; background: var(--bg); overflow-y: auto; padding: 14px 16px 60px; }
+        .pc-pagehead { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; }
+        .pc-pagehead h2 { font-size: 18px; margin: 0; }
+        .pc-field { display: flex; flex-direction: column; gap: 6px; margin-bottom: 12px; }
+        .pc-field > span { font-size: 12px; color: var(--text-muted); }
+        .pc-field input, .pc-field select, .pc-field textarea, .pc-pwbox input {
+          width: 100%; box-sizing: border-box; background: var(--surface); color: var(--text); border: 1px solid var(--border);
+          border-radius: 12px; padding: 12px 14px; font-size: 15px; font-family: inherit; outline: none;
+        }
+        .pc-field textarea { height: 90px; resize: none; }
+        .pc-field input[readonly] { opacity: 0.6; }
+        .pc-field em, .pc-pwbox em { font-style: normal; font-size: 12px; color: var(--text-muted); }
+        .pc-field em.ok, .pc-pwbox em.ok { color: #3ddc97; }
+        .pc-field em.bad, .pc-pwbox em.bad { color: var(--accent); }
+        .pc-pwrow {
+          width: 100%; display: flex; justify-content: space-between; padding: 12px 14px; margin-bottom: 12px;
+          background: var(--surface); border: 1px solid var(--border); border-radius: 12px; color: var(--text); font-size: 15px; cursor: pointer;
+        }
+        .pc-pwbox { display: flex; flex-direction: column; gap: 10px; margin-bottom: 14px; }
+        .pc-pwbox button {
+          padding: 10px; border-radius: 10px; border: none; cursor: pointer; font-weight: 600; color: var(--on-accent);
+          background: var(--gradient-cta);
+        }
+        .pc-error { color: var(--accent); font-size: 13px; margin: 6px 0 0; }
+        .pc-save { width: 100%; margin-top: 14px; }
+        .pc-overlay { position: fixed; inset: 0; z-index: 2500; background: rgba(8, 6, 12, 0.7); display: flex; justify-content: flex-end; }
+        .pc-center { justify-content: center; align-items: center; padding: 20px; }
+        .pc-drawer {
+          width: 78%; max-width: 320px; height: 100%; background: var(--surface); overflow-y: auto;
+          display: flex; flex-direction: column; border-left: 1px solid var(--border);
+        }
+        .pc-drawerhead { display: flex; align-items: center; gap: 12px; padding: 22px 18px; border-bottom: 1px solid var(--border); }
+        .pc-drawer > button {
+          text-align: left; padding: 16px 18px; background: transparent; border: none; color: var(--text);
+          font-size: 15px; border-bottom: 1px solid var(--border); cursor: pointer;
+        }
+        .pc-info { background: var(--surface); border: 1px solid var(--border); border-radius: 18px; padding: 20px; max-width: 360px; width: 100%; }
+        .pc-info h3 { margin: 0 0 10px; font-size: 17px; }
+        .pc-info p { margin: 0 0 16px; font-size: 14px; line-height: 1.55; color: var(--text-muted); }
+        .pc-info button {
+          width: 100%; padding: 10px; border-radius: 10px; border: none; font-weight: 600; cursor: pointer; color: var(--on-accent);
+          background: var(--gradient-cta);
+        }
+        /* cm-fix */
+        .cm-card { isolation: isolate; }
+        .cm-row .cm-join, .cm-head .cm-join { z-index: auto; }
+        .flag-img { border-radius: 4px; object-fit: cover; display: inline-block; vertical-align: middle; box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.18); }
+        .flag-fallback { font-size: 22px; }
+        .wd-bigflag .flag-img { border-radius: 8px; }
+        .pc-stats div { min-width: 0; }
+        .pc-stats .pc-cname { display: block; max-width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .wd-pick .lang-later { background: var(--surface-2); color: var(--text-muted); border: 1px solid var(--border); }
+        [dir="rtl"] .wd-arrow { transform: scaleX(-1); }
+        .wd-sum {
+          display: flex; align-items: center; gap: 14px; padding: 14px 16px; margin-bottom: 14px; border-radius: 18px;
+          background: linear-gradient(135deg, rgba(124, 92, 255, 0.28), rgba(25, 211, 240, 0.22));
+          border: 1px solid var(--border);
+        }
+        .wd-sumflag { font-size: 34px; }
+        .wd-sum div { display: flex; flex-direction: column; gap: 2px; }
+        .wd-sum strong { font-size: 18px; }
+        .wd-sum span { font-size: 12.5px; color: var(--text-muted); }
+        .wd-banner {
+          display: flex; flex-direction: column; gap: 6px; padding: 14px; margin-bottom: 14px; border-radius: 16px;
+          background: var(--surface); border: 1px dashed var(--accent);
+        }
+        .wd-banner span { font-size: 12.5px; color: var(--text-muted); }
+        .wd-banner em { font-style: normal; font-size: 12px; color: var(--accent); }
+        .wd-pick { display: flex; gap: 8px; margin-top: 4px; }
+        .wd-pick select {
+          flex: 1; min-width: 0; background: var(--surface-2); color: var(--text); border: 1px solid var(--border);
+          border-radius: 10px; padding: 10px; font-size: 14px;
+        }
+        .wd-pick button {
+          padding: 0 18px; border: none; border-radius: 10px; font-weight: 700; color: var(--on-accent); cursor: pointer;
+          background: var(--gradient-cta);
+        }
+        .wd-pick button:disabled { opacity: 0.45; }
+        .wd-mine { font-size: 13px; color: var(--text-muted); margin: 0 0 12px; }
+        .wd-h3 { font-size: 14px; margin: 4px 0 10px; color: var(--text-muted); font-weight: 600; }
+        .wd-bigflag { position: absolute; right: -2px; top: -4px; font-size: 62px; opacity: 0.4; line-height: 1; pointer-events: none; }
+        .wd-search {
+          width: 100%; box-sizing: border-box; background: var(--surface); color: var(--text); border: 1px solid var(--border);
+          border-radius: 999px; padding: 11px 16px; font-size: 14px; outline: none; margin-bottom: 8px;
+        }
+        .wd-row { display: flex; align-items: center; gap: 12px; padding: 11px 4px; border-bottom: 1px solid var(--border); cursor: pointer; }
+        .wd-row.mine { background: rgba(124, 92, 255, 0.12); border-radius: 12px; padding-left: 10px; padding-right: 10px; }
+        .wd-flag { font-size: 26px; flex: 0 0 34px; text-align: center; }
+        .wd-arrow { color: var(--text-muted); font-size: 22px; }
+        .flag-img { border-radius: 4px; object-fit: cover; display: inline-block; vertical-align: middle; box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.18); }
+        .flag-fallback { font-size: 22px; }
+        .wd-bigflag .flag-img { border-radius: 8px; }
+        .pc-stats div { min-width: 0; }
+        .pc-stats .pc-cname { display: block; max-width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .nav-badge {
+          margin-left: auto; background: #FF2E4D; color: white; font-size: 11px;
+          font-weight: 700; padding: 1px 7px; border-radius: 10px;
+        }
+        .nav-badge-mobile {
+          margin: 0; position: absolute; top: 2px; right: calc(50% - 16px);
+          width: 8px; height: 8px; padding: 0; border-radius: 50%;
+        }
+        .notif-view { padding-bottom: 20px; }
+        .notif-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; }
+        .notif-head .settings-title { margin-bottom: 0; }
+        .notif-markread {
+          display: flex; align-items: center; gap: 6px; background: none; border: 1px solid var(--border);
+          color: var(--text-muted); font-size: 12px; padding: 6px 12px; border-radius: 20px; cursor: pointer;
+        }
+        .notif-section { padding: 6px; }
+        .notif-row {
+          display: flex; align-items: center; gap: 12px; padding: 12px 10px;
+          border-radius: 10px; position: relative;
+        }
+        .notif-row.unread { background: var(--surface-2); }
+        .notif-icon {
+          width: 28px; height: 28px; border-radius: 50%; background: var(--bg);
+          display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+        }
+        .notif-text { display: flex; flex-direction: column; gap: 2px; font-size: 13px; line-height: 1.4; }
+        .notif-text strong { font-weight: 600; }
+        .notif-time { font-size: 11px; color: var(--text-muted); }
+        .notif-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--accent); margin-left: auto; flex-shrink: 0; }
+        .dm-list { padding-bottom: 20px; }
+        .dm-row {
+          display: flex; align-items: center; gap: 12px; width: 100%;
+          background: var(--surface); border: 1px solid var(--border); border-radius: 14px;
+          padding: 12px 14px; margin-bottom: 10px; cursor: pointer; text-align: left; color: var(--text);
+        }
+        .dm-row-text { display: flex; flex-direction: column; gap: 2px; flex: 1; min-width: 0; }
+        .dm-row-name { font-size: 14px; font-weight: 600; }
+        .dm-row-last {
+          font-size: 12px; color: var(--text-muted); overflow: hidden; text-overflow: ellipsis;
+          white-space: nowrap; max-width: 220px;
+        }
+        .chat-view { display: flex; flex-direction: column; height: calc(100vh - 48px); }
+        .chat-head { display: flex; align-items: center; gap: 10px; padding-bottom: 14px; border-bottom: 1px solid var(--border); }
+        .chat-head-name { font-size: 15px; font-weight: 600; }
+        .chat-messages { flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; padding: 16px 4px; }
+        .chat-bubble-row { display: flex; }
+        .chat-bubble-row.mine { justify-content: flex-end; }
+        .chat-bubble {
+          max-width: 75%; background: var(--surface-2); border-radius: 14px; padding: 9px 13px;
+          display: flex; flex-direction: column; gap: 3px;
+        }
+        .chat-bubble-row.mine .chat-bubble { background: var(--gradient-cta); color: var(--on-accent); }
+        .chat-bubble span:first-child { font-size: 13px; line-height: 1.4; }
+        .chat-bubble-time { font-size: 10px; opacity: 0.65; align-self: flex-end; }
+        .chat-input-row { display: flex; gap: 8px; padding-top: 12px; border-top: 1px solid var(--border); }
+        .chat-input-row input {
+          flex: 1; background: var(--surface-2); border: 1px solid var(--border); border-radius: 20px;
+          padding: 10px 14px; color: var(--text); font-size: 14px; outline: none;
+        }
+        .chat-input-row button {
+          background: var(--gradient-cta); border: none; color: var(--on-accent); width: 40px; height: 40px;
+          border-radius: 50%; display: flex; align-items: center; justify-content: center; cursor: pointer; flex-shrink: 0;
+        }
+        .chat-input-row button:disabled { opacity: 0.5; cursor: default; }
+        .main {
+          flex: 1;
+          min-width: 0;
+          padding: 24px 16px 90px;
+          max-width: 760px;
+          margin: 0 auto;
+          width: 100%;
+        }
+        .top-search {
+          display: flex;
+          align-items: center;
+          gap: 10px;
+          background: var(--surface);
+          border: 1px solid var(--border);
+          border-radius: 999px;
+          padding: 0 18px;
+          height: 46px;
+          margin-bottom: 18px;
+          color: var(--text-muted);
+        }
+        .top-search input {
+          background: transparent;
+          border: none;
+          outline: none;
+          color: var(--text);
+          font-size: 14px;
+          width: 100%;
+        }
+        .clear-search { background: none; border: none; color: var(--text-muted); cursor: pointer; flex-shrink: 0; }
+        .trending-row { margin-bottom: 20px; }
+        .trending-label {
+          display: flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 600;
+          color: var(--text-muted); margin-bottom: 10px;
+        }
+        .trending-label svg { color: var(--accent); }
+        .trending-chips { display: flex; gap: 10px; overflow-x: auto; padding-bottom: 4px; }
+        .trending-chip {
+          flex-shrink: 0; width: 130px; height: 80px; border-radius: 12px; padding: 10px;
+          display: flex; flex-direction: column; justify-content: flex-end; color: white;
+        }
+        .trending-chip span:first-child {
+          display: block; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+          font-size: 12px; font-weight: 600;
+        }
+        .trending-chip-likes { font-size: 11px; opacity: 0.85; }
+        .no-results { color: var(--text-muted); font-size: 13px; text-align: center; padding: 30px 0; }
+        .feed-status {
+          display: flex; align-items: center; justify-content: center; gap: 12px;
+          color: var(--text-muted); text-align: center; padding: 38px 12px; font-size: 14px;
+        }
+        .feed-status-error { flex-direction: column; color: var(--text); }
+        .feed-status button, .profile-posts-error button {
+          border: 1px solid var(--border); border-radius: 18px; background: var(--surface-2);
+          color: var(--text); padding: 7px 14px; cursor: pointer;
+        }
+        .load-more-posts {
+          width: 100%; padding: 11px; border: 1px solid var(--border); border-radius: 12px;
+          color: var(--text); background: var(--surface); font: inherit; cursor: pointer;
+        }
+        .load-more-posts:disabled { opacity: .6; cursor: default; }
+        .post-card {
+          background: var(--surface);
+          border: 1px solid var(--border);
+          border-radius: 16px;
+          padding: 16px;
+          margin-bottom: 18px;
+        }
+        .post-head { display: flex; align-items: center; gap: 10px; }
+        .avatar {
+          border-radius: 50%;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          font-weight: 700;
+          color: white;
+          flex-shrink: 0;
+          overflow: hidden;
+        }
+        .avatar-image { width: 100%; height: 100%; object-fit: cover; border-radius: inherit; }
+        .post-head-text { display: flex; flex-direction: column; flex: 1; min-width: 0; }
+        .post-user {
+          display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+          font-size: 14px; font-weight: 600;
+        }
+        .post-time { font-size: 12px; color: var(--text-muted); }
+        .follow-btn {
+          border: 1px solid var(--accent);
+          background: transparent;
+          color: var(--accent);
+          font-size: 13px;
+          font-weight: 600;
+          padding: 6px 14px;
+          border-radius: 20px;
+          cursor: pointer;
+          flex-shrink: 0;
+        }
+        .follow-btn.following { border-color: var(--border); color: var(--text-muted); }
+        .follow-btn.ghost { border-color: rgba(255,255,255,0.6); color: white; }
+        .follow-btn.ghost.following { border-color: rgba(255,255,255,0.3); color: rgba(255,255,255,0.7); }
+        .post-caption { font-size: 14px; line-height: 1.5; margin: 12px 0; color: var(--text); }
+        .post-media { height: 280px; border-radius: 12px; }
+        .post-detail-video-wrap {
+          position: relative; height: 280px; overflow: hidden; border-radius: 12px; background: #000;
+        }
+        .post-detail-video-wrap .post-media { display: block; width: 100%; height: 100%; border-radius: 0; }
+        .post-video-toggle {
+          position: absolute; left: 50%; top: 50%; z-index: 1; transform: translate(-50%, -50%);
+          width: 68px; height: 68px; display: flex; align-items: center; justify-content: center;
+          border: 1px solid rgba(255,255,255,.45); border-radius: 50%;
+          color: white; background: rgba(0,0,0,.58); cursor: pointer;
+          box-shadow: 0 3px 14px rgba(0,0,0,.35);
+          transition: opacity .22s ease, transform .22s ease;
+        }
+        .post-video-toggle.is-playing { opacity: 0; pointer-events: none; }
+        .post-video-toggle:focus-visible {
+          opacity: 1; outline: 2px solid white; outline-offset: 4px;
+        }
+        .post-video-toggle:active { transform: translate(-50%, -50%) scale(.96); }
+        .post-actions { display: flex; align-items: center; gap: 18px; margin-top: 12px; }
+        .icon-btn {
+          display: flex; align-items: center; gap: 6px;
+          background: none; border: none; color: var(--text-muted);
+          cursor: pointer; font-size: 13px; padding: 4px;
+        }
+        .icon-btn.liked { color: var(--accent); }
+        .icon-btn.spacer-left { margin-left: auto; }
+        .shorts-scroller {
+          height: calc(100vh - 32px);
+          max-width: 380px;
+          margin: 0 auto;
+          overflow-y: scroll;
+          scroll-snap-type: y mandatory;
+          border-radius: 20px;
+        }
+        .main-sparks {
+          height: 100dvh; min-height: 0; max-width: none; padding: 0; margin: 0;
+          position: relative; overflow: hidden;
+        }
+        .sparks-scroller {
+          position: relative; width: 100%; height: 100%; max-width: none; margin: 0;
+          overflow-y: auto; overflow-x: hidden; border-radius: 0;
+          scroll-snap-type: y mandatory; overscroll-behavior-y: contain;
+          scrollbar-width: none; touch-action: pan-y;
+        }
+        .sparks-scroller::-webkit-scrollbar { display: none; }
+        .short-card {
+          height: calc(100vh - 32px);
+          scroll-snap-align: start;
+          scroll-snap-stop: always;
+          position: relative;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          border-radius: 20px;
+          overflow: hidden;
+        }
+        .sparks-card { width: 100%; height: 100%; min-height: 100%; border-radius: 0; }
+        .sparks-card .spark-video-vertical { object-fit: cover; object-position: center; }
+        .sparks-card .spark-video-horizontal { object-fit: contain; object-position: center; background: #000; }
+        .sparks-card:fullscreen,
+        .sparks-card:-webkit-full-screen {
+          width: 100vw; height: 100vh; height: 100dvh; min-height: 100vh; min-height: 100dvh; max-width: none;
+          border-radius: 0; background: #000;
+        }
+        .sparks-card:fullscreen .short-video,
+        .sparks-card:-webkit-full-screen .short-video {
+          width: 100%; height: 100%; object-fit: contain; background: #000;
+        }
+        .sparks-card:fullscreen .spark-video-vertical,
+        .sparks-card:-webkit-full-screen .spark-video-vertical { object-fit: cover; }
+        .sparks-card:fullscreen .spark-video-horizontal,
+        .sparks-card:-webkit-full-screen .spark-video-horizontal { object-fit: contain; }
+        .sparks-card:fullscreen .mute-btn,
+        .sparks-card:-webkit-full-screen .mute-btn { top: calc(env(safe-area-inset-top, 0px) + 16px); }
+        .fullscreen-rail-btn { white-space: nowrap; }
+        .sparks-topbar {
+          position: absolute; top: calc(env(safe-area-inset-top, 0px) + 12px);
+          left: 16px; right: 16px; z-index: 6;
+          display: flex; justify-content: space-between; align-items: center;
+          pointer-events: none;
+        }
+        .sparks-title {
+          display: flex; align-items: center; gap: 8px; color: white;
+          font-size: 18px; font-weight: 700; text-shadow: 0 1px 8px rgba(0,0,0,.55);
+        }
+        .sparks-title svg { color: #FFD166; }
+        .sparks-create {
+          display: flex; align-items: center; gap: 7px; padding: 9px 12px;
+          border: 1px solid rgba(255,255,255,.3); border-radius: 22px;
+          color: white; background: rgba(18,15,24,.55); backdrop-filter: blur(10px);
+          font-size: 12px; font-weight: 600; cursor: pointer; pointer-events: auto;
+        }
+        .sparks-scroller .sparks-card .mute-btn { top: 62px; }
+        .shorts-status {
+          position: absolute; z-index: 5; top: 50%; left: 50%; transform: translate(-50%, -50%);
+          display: flex; flex-direction: column; align-items: center; gap: 12px;
+          width: min(82%, 360px); padding: 22px; border: 1px solid var(--border);
+          border-radius: 16px; background: rgba(32,27,41,.94); color: var(--text-muted);
+          text-align: center; font-size: 13px;
+        }
+        .shorts-status strong { color: var(--text); font-size: 16px; }
+        .shorts-status button {
+          border: 0; border-radius: 20px; padding: 9px 15px; background: var(--gradient-cta);
+          color: var(--on-accent); font-weight: 600; cursor: pointer;
+        }
+        .shorts-status-error { color: var(--text); }
+        .short-play { color: rgba(255,255,255,0.85); opacity: 0.9; }
+        .short-unavailable {
+          position: absolute; inset: 0; display: grid; place-items: center;
+          padding: 20px; color: rgba(255,255,255,.75); font-size: 14px; text-align: center;
+        }
+        .mute-btn {
+          position: absolute; top: 16px; right: 16px;
+          background: rgba(0,0,0,0.35); border: none; color: white;
+          border-radius: 50%; width: 36px; height: 36px; cursor: pointer;
+          display: grid; place-items: center; z-index: 3;
+        }
+        .short-rail {
+          position: absolute; right: 12px; bottom: 90px;
+          display: flex; flex-direction: column; gap: 18px; align-items: center;
+        }
+        .rail-btn {
+          background: none; border: none; color: white; cursor: pointer;
+          display: flex; flex-direction: column; align-items: center; gap: 4px;
+          font-size: 11px;
+        }
+        .rail-btn.liked { color: var(--accent); }
+        .short-info { position: absolute; left: 16px; right: 70px; bottom: 20px; color: white; }
+        .short-user-row { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+        .short-user { font-weight: 600; font-size: 14px; }
+        .short-caption { font-size: 13px; line-height: 1.4; opacity: 0.95; }
+        .short-views { display: inline-flex; align-items: center; gap: 4px; font-size: 11px; color: rgba(255,255,255,.78); margin-top: 7px; }
+        .spark-upload-view { width: 100%; max-width: 560px; margin: 0 auto; padding-bottom: 30px; }
+        .spark-upload-header { display: flex; align-items: center; gap: 12px; margin-bottom: 18px; }
+        .spark-upload-header h2 { font-size: 21px; }
+        .spark-upload-form {
+          padding: 18px; border: 1px solid var(--border); border-radius: 18px;
+          background: var(--surface);
+        }
+        .visually-hidden {
+          position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+          overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0;
+        }
+        .spark-picker {
+          min-height: 250px; border: 1.5px dashed var(--border); border-radius: 14px;
+          display: flex; flex-direction: column; align-items: center; justify-content: center;
+          gap: 10px; padding: 24px; text-align: center; color: var(--text-muted);
+        }
+        .spark-picker > svg { color: #FFD166; }
+        .spark-picker strong { color: var(--text); font-size: 17px; }
+        .spark-picker > span { max-width: 330px; font-size: 13px; line-height: 1.5; }
+        .spark-picker-actions { display: flex; flex-wrap: wrap; justify-content: center; gap: 9px; margin-top: 10px; }
+        .spark-picker-actions button {
+          display: flex; align-items: center; justify-content: center; gap: 7px;
+          border: 1px solid var(--border); border-radius: 22px; padding: 10px 14px;
+          color: var(--text); background: var(--surface-2); font-size: 12px;
+          font-weight: 600; cursor: pointer;
+        }
+        .spark-picker-actions button:hover { border-color: var(--accent); }
+        .spark-upload-preview { position: relative; margin-bottom: 8px; }
+        .spark-upload-preview video {
+          display: block; width: 100%; max-height: min(56vh, 540px);
+          object-fit: contain; border-radius: 12px; background: #08070A;
+        }
+        .spark-change-video {
+          position: absolute; top: 10px; right: 10px; border: 0; border-radius: 18px;
+          padding: 7px 11px; background: rgba(0,0,0,.62); color: white;
+          font-size: 11px; cursor: pointer;
+        }
+        .spark-duration { min-height: 18px; margin: 5px 0 14px; color: var(--text-muted); font-size: 12px; }
+        .spark-caption-label { display: block; margin: 12px 0 7px; font-size: 13px; font-weight: 600; }
+        .spark-upload-form textarea { min-height: 90px; margin-bottom: 8px; }
+        .spark-upload-error { color: #FF6B82; font-size: 13px; margin: 2px 0 12px; }
+        .spark-submit:disabled { opacity: .5; cursor: not-allowed; }
+        .profile-view { padding-bottom: 20px; }
+        .profile-cover { height: 120px; border-radius: 16px; margin-bottom: -42px; }
+        .profile-header { display: flex; align-items: flex-end; gap: 14px; padding: 0 12px; }
+        .profile-meta h2 { font-size: 19px; }
+        .handle { font-size: 13px; color: var(--text-muted); }
+        .profile-stats {
+          display: flex; gap: 28px; padding: 18px 12px; border-bottom: 1px solid var(--border);
+          margin-bottom: 14px;
+        }
+        .profile-stats div { display: flex; flex-direction: column; font-size: 13px; color: var(--text-muted); }
+        .profile-stats strong { font-size: 16px; color: var(--text); }
+        .profile-bio { padding: 0 12px; font-size: 14px; color: var(--text-muted); margin-bottom: 16px; }
+        .profile-tabs {
+          display: flex; gap: 20px; padding: 0 12px; margin: 0 0 12px;
+          border-bottom: 1px solid var(--border);
+        }
+        .profile-tabs button {
+          position: relative; border: 0; background: none; color: var(--text-muted);
+          padding: 10px 4px; font: inherit; font-size: 13px; cursor: pointer;
+        }
+        .profile-tabs button.active { color: var(--text); font-weight: 600; }
+        .profile-tabs button.active::after {
+          content: ""; position: absolute; height: 2px; left: 0; right: 0; bottom: -1px;
+          background: var(--accent); border-radius: 2px;
+        }
+        .profile-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; padding: 0 12px; }
+        .grid-thumb {
+          position: relative; aspect-ratio: 1; border: 0; border-radius: 8px; padding: 0;
+          overflow: hidden; background: var(--surface-2); cursor: pointer;
+        }
+        .grid-thumb img, .grid-thumb video { width: 100%; height: 100%; display: block; object-fit: cover; }
+        .grid-video-play {
+          position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+          color: white; pointer-events: none;
+        }
+        .grid-video-play-circle {
+          width: 48px; height: 48px; display: flex; align-items: center; justify-content: center;
+          border-radius: 50%; background: rgba(0,0,0,.58);
+          box-shadow: 0 2px 10px rgba(0,0,0,.35); backdrop-filter: blur(2px);
+        }
+        .grid-thumb-username {
+          position: absolute; left: 0; right: 0; bottom: 0; overflow: hidden;
+          padding: 18px 7px 6px; color: white; text-align: left; font-size: 11px;
+          font-weight: 600; text-overflow: ellipsis; white-space: nowrap;
+          background: linear-gradient(transparent, rgba(0,0,0,.75));
+        }
+        .icon-btn.saved { color: var(--accent); }
+        .icon-btn:disabled { opacity: .65; cursor: wait; }
+        .share-toast {
+          position: fixed; left: 50%; bottom: 92px; z-index: 80; transform: translateX(-50%);
+          border: 1px solid var(--border); border-radius: 22px; padding: 10px 16px;
+          color: var(--text); background: var(--surface-2); box-shadow: 0 8px 28px rgba(0,0,0,.35);
+          font-size: 13px; animation: toast-in .16s ease-out;
+        }
+        @keyframes toast-in { from { opacity: 0; transform: translate(-50%, 8px); } to { opacity: 1; transform: translate(-50%, 0); } }
+        .profile-posts-status { color: var(--text-muted); text-align: center; font-size: 13px; padding: 24px 12px; }
+        .profile-posts-error { display: flex; align-items: center; justify-content: center; gap: 10px; }
+        /* Ballonfly profile look */
+        .profile-cover { height: 100px !important; background: linear-gradient(120deg, #00223D, #0a3a5c 55%, #00223D) !important; border: 1px solid var(--card-border); }
+        .profile-header .avatar { box-shadow: 0 0 0 3px #000F1D, 0 0 0 6px var(--accent); }
+        .profile-meta h2 { font-size: 22px; font-weight: 600; }
+        .pc-stats div { background: var(--surface); border: 1px solid var(--card-border); border-radius: 16px; }
+        .pc-actions button { height: 46px; border-radius: 999px !important; font-weight: 600; background: var(--surface); border: 1px solid var(--card-border); color: var(--text); }
+        .pc-actions button:first-child { background: var(--gradient-cta); color: var(--on-accent); border-color: transparent; font-weight: 700; }
+        .pc-toggle { border-radius: 999px !important; background: var(--surface) !important; border: 1px solid var(--card-border) !important; }
+        .profile-tabs { gap: 10px; border-bottom: 0; padding: 4px 12px 8px; }
+        .profile-tabs button { padding: 0 22px; height: 38px; border-radius: 999px; background: var(--surface); border: 1px solid var(--card-border); color: var(--text); font-size: 14px; }
+        .profile-tabs button.active { background: var(--gradient-cta); color: var(--on-accent); border-color: transparent; font-weight: 700; }
+        .profile-tabs button.active::after { display: none; }
+        .grid-thumb { border-radius: 12px; }
+        .post-detail-modal { border-radius: 22px; background: #00182c; border: 1px solid var(--card-border); }
+        .comments-error { color: #FF6B82; font-size: 12px; margin: 0 0 10px; }
+        .settings-view { padding-bottom: 20px; }
+        .settings-title { font-size: 22px; margin-bottom: 20px; }
+        .settings-section {
+          background: var(--surface); border: 1px solid var(--border);
+          border-radius: 14px; padding: 6px 16px; margin-bottom: 16px;
+        }
+        .settings-heading {
+          display: block; font-size: 12px; font-weight: 600; letter-spacing: 0.02em;
+          color: var(--text-muted); padding: 12px 0 6px;
+        }
+        .setting-row {
+          display: flex; align-items: center; justify-content: space-between;
+          padding: 12px 0; border-top: 1px solid var(--border);
+          background: none; border-left: none; border-right: none; border-bottom: none;
+          width: 100%; text-align: left; cursor: pointer; color: var(--text);
+        }
+        .settings-section .setting-row:first-of-type { border-top: none; }
+        .setting-row-text { display: flex; flex-direction: column; gap: 2px; }
+        .setting-label { font-size: 14px; font-weight: 500; }
+        .setting-sub { font-size: 12px; color: var(--text-muted); }
+        .setting-row svg { color: var(--text-muted); flex-shrink: 0; }
+        .danger-row { color: var(--accent); gap: 10px; }
+        .danger-row svg { color: var(--accent); }
+        .toggle {
+          width: 42px; height: 24px; border-radius: 12px; border: none;
+          background: var(--border); position: relative; cursor: pointer; flex-shrink: 0;
+          transition: background 0.15s;
+        }
+        .toggle.on { background: var(--accent); }
+        .toggle-knob {
+          position: absolute; top: 2px; left: 2px; width: 20px; height: 20px;
+          border-radius: 50%; background: white; transition: left 0.15s;
+        }
+        .toggle.on .toggle-knob { left: 20px; }
+        .comments-modal { max-width: 440px; display: flex; flex-direction: column; max-height: 80vh; }
+        .comment-error { color: #FF6B82; font-size: 12px; margin: 0 0 10px; }
+        .comments-list { overflow-y: auto; max-height: 45vh; margin-bottom: 14px; display: flex; flex-direction: column; gap: 14px; }
+        .comments-empty { color: var(--text-muted); font-size: 13px; text-align: center; padding: 20px 0; }
+        .comment-row { display: flex; gap: 10px; align-items: flex-start; }
+        .comment-user { font-size: 13px; font-weight: 600; }
+        .comment-text { font-size: 13px; color: var(--text); margin: 2px 0 0; line-height: 1.4; }
+        .comment-form { display: flex; align-items: center; gap: 10px; border-top: 1px solid var(--border); padding-top: 14px; }
+        .comment-form input {
+          flex: 1; background: var(--surface-2); border: 1px solid var(--border); border-radius: 20px;
+          padding: 9px 14px; color: var(--text); font-size: 13px; outline: none;
+        }
+        .comment-form button {
+          background: none; border: none; color: var(--accent); font-weight: 600; font-size: 13px; cursor: pointer;
+        }
+        .comment-form button:disabled { color: var(--text-muted); cursor: default; }
+        .modal-overlay {
+          position: fixed; inset: 0; background: rgba(0,0,0,0.6);
+          display: flex; align-items: center; justify-content: center; z-index: 50;
+          padding: 16px;
+        }
+        .modal {
+          background: var(--surface); border: 1px solid var(--border);
+          border-radius: 18px; padding: 20px; width: 100%; max-width: 420px;
+        }
+        .post-detail-modal {
+          width: 100%; max-width: 560px; max-height: 90vh; overflow-y: auto;
+          padding: 20px; border: 1px solid var(--border); border-radius: 18px; background: var(--surface);
+        }
+        .post-detail-modal .post-card { margin: 0; }
+        .modal-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+        .type-toggle { display: flex; gap: 8px; margin-bottom: 14px; }
+        .type-toggle button {
+          flex: 1; display: flex; align-items: center; justify-content: center; gap: 6px;
+          padding: 9px; border-radius: 10px; border: 1px solid var(--border);
+          background: transparent; color: var(--text-muted); font-size: 13px; cursor: pointer;
+        }
+        .type-toggle button.active { background: var(--surface-2); color: var(--text); border-color: var(--accent); }
+        .drop-zone {
+          border: 1.5px dashed var(--border); border-radius: 12px; padding: 28px 12px;
+          display: flex; flex-direction: column; align-items: center; gap: 8px;
+          color: var(--text-muted); font-size: 13px; margin-bottom: 14px; text-align: center;
+          cursor: pointer;
+        }
+        .upload-preview { position: relative; margin-bottom: 14px; }
+        .upload-preview-media {
+          width: 100%; max-height: 240px; object-fit: cover; border-radius: 12px; display: block;
+        }
+        .upload-preview-remove {
+          position: absolute; top: 8px; right: 8px; display: flex; align-items: center; gap: 4px;
+          background: rgba(0,0,0,0.6); border: none; color: white; font-size: 11px;
+          padding: 5px 9px; border-radius: 20px; cursor: pointer;
+        }
+        .post-media-real { object-fit: cover; width: 100%; background: #000; }
+        .post-submit:disabled { opacity: 0.5; cursor: default; }
+        .short-video { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+        textarea {
+          width: 100%; background: var(--surface-2); border: 1px solid var(--border);
+          border-radius: 10px; padding: 10px 12px; color: var(--text); font-size: 14px;
+          resize: none; min-height: 70px; margin-bottom: 14px; font-family: inherit;
+        }
+        .post-submit {
+          width: 100%; padding: 11px; border-radius: 10px; border: none;
+          background: var(--gradient-cta); color: var(--on-accent); font-weight: 600; font-size: 14px; cursor: pointer;
+        }
+        @media (max-width: 720px) {
+          .sidebar { display: none; }
+          .main { padding: 0 14px 76px; max-width: 100%; }
+          .app-header {
+            position: sticky; top: 0; z-index: 20; display: flex; align-items: center; gap: 6px;
+            height: 64px; margin: 0 -14px 4px; padding: 0 16px 0 18px; background: #000E1C;
+          }
+          .app-header-logo { flex: 1; min-width: 0; display: flex; align-items: center; gap: 2px; }
+          .hdr-bf { height: 46px; width: auto; display: block; }
+          .hdr-wm { height: 26px; width: auto; display: block; }
+          .hdr-btn { position: relative; background: none; border: 0; padding: 6px; color: var(--text); display: grid; place-items: center; cursor: pointer; }
+          .hdr-badge {
+            position: absolute; top: 0; right: -2px; min-width: 17px; height: 17px; padding: 0 4px; border-radius: 9px;
+            background: #FF2E4D; color: #fff; font-size: 10.5px; font-weight: 700; display: grid; place-items: center; line-height: 1;
+          }
+          .hdr-sbox { flex: 1; display: flex; align-items: center; gap: 8px; height: 44px; padding: 0 16px; border-radius: 999px; background: var(--surface); border: 1px solid var(--border); color: var(--text-muted); }
+          .hdr-sbox input { flex: 1; background: transparent; border: 0; outline: 0; color: var(--text); font-size: 15px; min-width: 0; }
+          .hdr-sbox button { background: none; border: 0; padding: 0; color: var(--text); display: grid; cursor: pointer; }
+          .hdr-me { display: flex; align-items: center; gap: 2px; background: none; border: 0; padding: 0 0 0 4px; color: var(--text); cursor: pointer; }
+          .hdr-ring { display: block; border-radius: 50%; box-shadow: 0 0 0 2px #000E1C, 0 0 0 4px var(--accent); line-height: 0; }
+          .home-tabs, .vf { padding-left: 0; padding-right: 0; }
+          .main.main-sparks { height: calc(100dvh - 64px); padding: 0; }
+          .bottom-nav {
+            position: fixed; bottom: 0; left: 0; right: 0;
+            display: flex; justify-content: space-around; align-items: center;
+            background: #000E1C; border-top: 1px solid #021E34;
+            min-height: 64px; padding: 7px 0 env(safe-area-inset-bottom, 0px);
+          }
+          .bottom-nav button {
+            flex: 1; height: 42px; display: grid; place-items: center; position: relative; position: relative;
+            background: none; border: none; color: var(--text-muted); cursor: pointer;
+          }
+          .bottom-nav button.active { color: var(--accent); }
+          .shorts-scroller { height: calc(100dvh - 90px); }
+          .shorts-scroller .short-card { height: calc(100dvh - 90px); }
+          .shorts-scroller.sparks-scroller { height: 100%; }
+          .shorts-scroller.sparks-scroller .sparks-card { height: 100%; min-height: 100%; }
+          .sparks-card .short-rail { right: 10px; bottom: 110px; }
+          .sparks-card .short-info { bottom: 28px; }
+          .spark-upload-view { padding-bottom: 86px; }
+        }
+        @media (max-width: 420px) {
+          .sparks-title { font-size: 16px; }
+          .sparks-create { padding: 8px 10px; }
+          .spark-upload-form { padding: 14px; }
+          .spark-picker-actions { flex-direction: column; width: 100%; }
+          .spark-picker-actions button { width: 100%; }
+        }
+        @media (min-width: 721px) {
+          .bottom-nav { display: none; }
+        }
+      `}</style>
+
+      <nav className="sidebar">
+        <div className="brand"><img className="brand-bf" src={butterflyImg} alt="" draggable="false" /><img className="brand-wm" src={wordmarkImg} alt="Ballonfly" draggable="false" /></div>
+        {navItems.map((item) => (
+          <button
+            key={item.key}
+            className={"nav-item" + (view === item.key || (item.key === "videos" && (view === "feed" || view === "communities")) ? " active" : "")}
+            onClick={() => (item.key === "upload" ? setShowUpload(true) : setView(item.key))}
+          >
+            <item.icon size={19} />
+            {item.label}
+            {!!item.badge && <span className="nav-badge">{item.badge}</span>}
+          </button>
+        ))}
+        <button className="nav-item logout-item" onClick={() => setUser(null)}>
+          <LogOut size={19} />
+          Log Out
+        </button>
+      </nav>
+
+      <main className={"main" + (view === "sparks" ? " main-sparks" : "")}>
+        <LanguageSync token={user?.token} />
+        {(view === "feed" || view === "videos" || view === "communities" || view === "profile") && (
+          <AppHeader
+            user={user}
+            unread={unreadCount}
+            query={videoQuery}
+            onQuery={(v) => { setVideoQuery(v); if (view !== "videos") setView("videos"); }}
+            onBell={() => setView("notifications")}
+            onProfile={() => setView("profile")}
+          />
+        )}
+        {false && (
+          <div className="home-tabs">
+            <button type="button" className={view === "feed" ? "active" : ""} onClick={() => setView("feed")}>{t("tabs.posts")}</button>
+            <button type="button" className={view === "videos" ? "active" : ""} onClick={() => setView("videos")}>{t("tabs.videos")}</button>
+            <button type="button" className={view === "communities" ? "active" : ""} onClick={() => setView("communities")}>{t("tabs.countries")}</button>
+          </div>
+        )}
+        {view === "videos" && (
+          <VideosFeed
+            token={user?.token}
+            userId={user?.id}
+            query={videoQuery}
+            onQuery={setVideoQuery}
+            extraChips={[]}
+          />
+        )}
+        {view === "communities" && <CountriesView token={user?.token} userId={user?.id} />}
+        {view === "feed" && (
+          <>
+            <div className="top-search">
+              <Search size={16} />
+              <input
+                placeholder="Search Ballonfly"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+              />
+              {searchQuery && (
+                <button className="clear-search" onClick={() => setSearchQuery("")}>
+                  <X size={14} />
+                </button>
+              )}
+            </div>
+
+            {!searchQuery && posts.length > 0 && (
+              <div className="trending-row">
+                <div className="trending-label">
+                  <Flame size={15} /> Trending now
+                </div>
+                <div className="trending-chips">
+                  {[...posts]
+                    .sort((a, b) => b.likes - a.likes)
+                    .slice(0, 3)
+                    .map((p) => (
+                      <div key={p.id} className="trending-chip" style={{ background: p.grad }}>
+                        <span>{p.user}</span>
+                        <span className="trending-chip-likes">{p.likes} likes</span>
+                      </div>
+                    ))}
+                </div>
+              </div>
+            )}
+
+            {postsLoading && posts.length === 0 && (
+              <p className="feed-status">Loading posts…</p>
+            )}
+            {postsError && (
+              <div className="feed-status feed-status-error" role="alert">
+                <span>{postsError}</span>
+                <button type="button" onClick={() => setPostsRetry((retry) => retry + 1)}>Retry</button>
+              </div>
+            )}
+            {!postsLoading && !postsError && posts.length === 0 && !searchQuery && (
+              <p className="feed-status">No posts yet</p>
+            )}
+            {!postsLoading && !postsError && posts.length > 0 && filteredPosts.length === 0 && (
+              <p className="no-results">"{searchQuery}" ke liye koi post nahi mila</p>
+            )}
+
+            {filteredPosts.map((p) => (
+              <PostCard
+                key={p.id}
+                post={p}
+                liked={liked}
+                onLike={togglePostLike}
+                following={followingIds}
+                onFollow={toggleUserFollow}
+                onOpenComments={setActiveCommentsPost}
+                currentUserId={user?.id}
+                saved={savedPostIds.has(p.id)}
+                saving={savingPostIds.has(p.id)}
+                onSave={togglePostSave}
+                onShare={sharePost}
+              />
+            ))}
+            {!searchQuery && postsHasMore && (
+              <button className="load-more-posts" type="button" onClick={loadMorePosts} disabled={postsMoreLoading}>
+                {postsMoreLoading ? "Loading…" : "Load more"}
+              </button>
+            )}
+          </>
+        )}
+        {(view === "shorts" || view === "sparks") && (
+          <ShortsView
+            shorts={shorts}
+            liked={liked}
+            onLike={toggleShortLike}
+            following={following}
+            onFollow={toggleFollow}
+            commentsByShort={commentsByShort}
+            onOpenComments={setActiveCommentsShort}
+            onView={markShortViewed}
+            onShare={shareShort}
+            loading={shortsLoading}
+            error={shortsError}
+            onRetry={() => setShortsRetry((attempt) => attempt + 1)}
+            isSparks={view === "sparks"}
+            onCreate={() => setView("spark-upload")}
+          />
+        )}
+        {view === "spark-upload" && (
+          <SparksUploadView
+            token={user?.token}
+            onBack={() => setView("sparks")}
+            onShortUploaded={onShortUploaded}
+          />
+        )}
+        {view === "profile" && (
+          <ProfileView
+            posts={profilePosts}
+            savedPosts={savedPosts}
+            profileTab={profileTab}
+            onTabChange={setProfileTab}
+            following={following}
+            user={user}
+            followersCount={profileFollowers}
+            followingCount={followingIds.size}
+            loading={profilePostsLoading}
+            error={profilePostsError}
+            onRetry={() => setProfilePostsRetry((retry) => retry + 1)}
+            savedLoading={savedPostsLoading}
+            savedError={savedPostsError}
+            onSavedRetry={() => setSavedPostsRetry((retry) => retry + 1)}
+            onOpenPost={setSelectedProfilePost}
+            onLogout={() => setUser(null)}
+          />
+        )}
+        {view === "video-upload" && (
+          <VideoUploadView
+            token={user?.token}
+            onBack={() => setView("videos")}
+            onDone={() => setView("videos")}
+          />
+        )}
+        {view === "settings" && <SettingsView user={user} onLogout={() => setUser(null)} />}
+        {view === "notifications" && (
+          <NotificationsView notifications={notifications} onMarkAllRead={markAllRead} />
+        )}
+        {view === "messages" && (
+          <MessagesView
+            conversations={conversations}
+            activeId={activeChatId}
+            onOpenChat={openChat}
+            onBack={() => setActiveChatId(null)}
+            onSend={sendMessage}
+            currentUser={user}
+          />
+        )}
+      </main>
+
+      <div className="bottom-nav">
+        {navItems.filter((item) => item.key !== "settings").map((item) => (
+          <button
+            key={item.key}
+            className={view === item.key || (item.key === "videos" && (view === "feed" || view === "communities")) ? "active" : ""}
+            onClick={() => (item.key === "upload" ? setShowUpload(true) : setView(item.key))}
+            aria-label={item.label}
+            title={item.label}
+          >
+            <item.icon size={22} />
+            {!!item.badge && <span className="nav-badge nav-badge-mobile" />}
+          </button>
+        ))}
+      </div>
+
+      {showUpload && (
+        <UploadModal
+          onClose={() => setShowUpload(false)}
+          onPost={addPost}
+          onShortUploaded={onShortUploaded}
+          onOpenVideoUpload={() => { setShowUpload(false); setView("video-upload"); }}
+          token={user?.token}
+          user={user}
+        />
+      )}
+      {selectedProfilePost && (
+        <div className="modal-overlay" onClick={() => setSelectedProfilePost(null)}>
+          <div className="post-detail-modal" onClick={(event) => event.stopPropagation()}>
+            <div className="modal-head">
+              <h3>Post</h3>
+              <button className="icon-btn" type="button" onClick={() => setSelectedProfilePost(null)} aria-label="Close post">
+                <X size={20} />
+              </button>
+            </div>
+            <PostCard
+              post={selectedProfilePost}
+              liked={liked}
+              onLike={togglePostLike}
+              following={followingIds}
+              onFollow={toggleUserFollow}
+              onOpenComments={setActiveCommentsPost}
+              currentUserId={user?.id}
+              saved={savedPostIds.has(selectedProfilePost.id)}
+              saving={savingPostIds.has(selectedProfilePost.id)}
+              onSave={togglePostSave}
+              onShare={sharePost}
+              isDetailView
+            />
+          </div>
+        </div>
+      )}
+      {activeCommentsPost && (
+        <CommentsModal
+          post={activeCommentsPost}
+          comments={[
+            ...(activeCommentsPost.commentsList || []),
+            ...(commentsByPost[activeCommentsPost.id] || []),
+          ]}
+          currentUser={user}
+          onAddComment={addComment}
+          onClose={() => setActiveCommentsPost(null)}
+          isPost
+        />
+      )}
+      {activeCommentsShort && (
+        <CommentsModal
+          post={activeCommentsShort}
+          comments={[
+            ...(activeCommentsShort.commentsList || []),
+            ...(commentsByShort[activeCommentsShort.id] || []),
+          ]}
+          currentUser={user}
+          onAddComment={addShortComment}
+          onClose={() => setActiveCommentsShort(null)}
+        />
+      )}
+      {shareToast && <div className="share-toast" role="status">Link copied</div>}
+    </div>
+  );
+}

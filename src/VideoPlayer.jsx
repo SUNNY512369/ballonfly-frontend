@@ -1,7 +1,7 @@
 import { useRef, useState, useEffect } from "react";
 import { Play, Pause } from "lucide-react";
 
-const ACCENT = "#ff4d6d";
+const ACCENT = "#19c6f5";
 
 const fmt = (s) => {
   if (!isFinite(s)) return "0:00";

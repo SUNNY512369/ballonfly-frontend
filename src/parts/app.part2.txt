@@ -1,0 +1,1134 @@
+        window.history.replaceState({}, "", u.pathname + u.search);
+      }
+    } catch (e) { /* ignore */ }
+  };
+
+  // open a shared link like /?v=<videoId>
+  useEffect(() => {
+    if (mine || community) return;
+    try {
+      const vid = new URLSearchParams(window.location.search).get("v");
+      if (vid && /^[a-f0-9]{24}$/i.test(vid)) setActive({ _id: vid });
+    } catch (e) { /* ignore */ }
+  }, []);
+
+  const authorName = (v) => (v.author && v.author.name ? v.author.name : "Unknown");
+  const [copied, setCopied] = useState(false);
+  const copyVideoLink = (id) => {
+    const link = window.location.origin + window.location.pathname + "?v=" + id;
+    const done = () => { setCopied(true); setTimeout(() => setCopied(false), 1800); };
+    if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(link).then(done).catch(() => {});
+  };
+
+  return (
+    <section className={"vf" + (mine ? " vf-mine" : "")}>
+      {onQuery && (
+        <div className="vf-search">
+          <Search size={16} />
+          <input value={query} onChange={(e) => onQuery(e.target.value)} placeholder="Videos search karein" />
+        </div>
+      )}
+      <div className="vf-chips">
+        {cats.map((c) => (
+          <button
+            key={c}
+            type="button"
+            className={c === category ? "active" : ""}
+            onClick={() => setCategory(c)}
+          >
+            {c}
+          </button>
+        ))}
+        {extraChips.map((c) => (
+          <button key={c.label} type="button" className="vf-extra" onClick={c.onClick}>{c.label}</button>
+        ))}
+      </div>
+
+      {loading && videos.length === 0 && (
+        <>
+          {[0, 1, 2, 3].map((i) => (
+            <div key={i} className="vf-card vf-skel">
+              <div className="vf-thumb" />
+              <div className="vf-meta"><strong>&nbsp;</strong><span>&nbsp;</span><span>&nbsp;</span></div>
+            </div>
+          ))}
+        </>
+      )}
+
+      {error && (
+        <div className="feed-status feed-status-error" role="alert">
+          <span>{error}</span>
+          <button type="button" onClick={() => setRetry((n) => n + 1)}>Retry</button>
+        </div>
+      )}
+
+      {!loading && !error && videos.length === 0 && (
+        <p className="feed-status">Abhi koi video nahi hai. Create (+) dabao aur "Lambi video upload karein" chuno.</p>
+      )}
+
+      {videos.filter((v) => {
+        const q = (query || "").trim().toLowerCase();
+        return !q || (v.title || "").toLowerCase().indexOf(q) > -1 || authorName(v).toLowerCase().indexOf(q) > -1;
+      }).map((v) => (
+        <div key={v._id} className="vf-card" role="button" tabIndex={0} onClick={() => openVideo(v)} onKeyDown={(e) => { if (e.key === "Enter") openVideo(v); }}>
+          <div className="vf-thumb">
+            <img src={v.thumbnailUrl} alt="" loading="lazy" />
+            <span className="vf-dur">{vfDuration(v.duration)}</span>
+          </div>
+          <span className="vf-chav">{authorName(v).slice(0, 1).toUpperCase()}</span>
+          <div className="vf-meta">
+            <strong>{v.title}</strong>
+            <span className="vf-author">{authorName(v)}{v.author && v.author.verified && <svg className="vf-tick" viewBox="0 0 24 24" aria-label="Verified"><circle cx="12" cy="12" r="11" fill="currentColor" /><path d="M7.2 12.4l3.2 3.2 6.4-6.6" fill="none" stroke="#fff" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" /></svg>}</span>
+            <span className="vf-stats">{shortCount(v.views)} views<i>•</i>{videoAgo(v.createdAt)}</span>
+          </div>
+          <button type="button" className="vf-more" aria-label="Copy link" onClick={(e) => { e.stopPropagation(); copyVideoLink(v._id); }}>
+            <MoreVertical size={20} />
+          </button>
+        </div>
+      ))}
+
+      {copied && <div className="vf-toast" role="status">Link copy ho gaya</div>}
+
+      {active && (
+        <WatchPage
+          key={active._id}
+          api={API_BASE}
+          token={token}
+          userId={userId}
+          initial={active}
+          categories={cats}
+          onClose={closeVideo}
+          onOpen={openVideo}
+        />
+      )}
+    </section>
+  );
+}
+
+const COMMUNITY_COLORS = [
+  ["#8A42FF", "#00CFFF"], ["#00c6a7", "#3a7bd5"], ["#C45BFF", "#2563EB"],
+  ["#4facfe", "#7c5cff"], ["#00CFFF", "#2563EB"], ["#00B8D4", "#00E5FF"], ["#8e2de2", "#4a00e0"],
+];
+
+function CommunitiesView({ token, userId }) {
+  const [list, setList] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [selected, setSelected] = useState(null);
+  const [retry, setRetry] = useState(0);
+
+  useEffect(() => {
+    let cancelled = false;
+    setLoading(true);
+    setError("");
+    const headers = token ? { Authorization: "Bearer " + token } : {};
+    fetch(API_BASE + "/communities", { headers: headers })
+      .then((r) => (r.ok ? r.json() : Promise.reject(new Error("bad"))))
+      .then((d) => {
+        if (!cancelled) setList(Array.isArray(d.communities) ? d.communities : []);
+      })
+      .catch(() => {
+        if (!cancelled) setError("Communities load nahi ho sakin");
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => { cancelled = true; };
+  }, [token, retry]);
+
+  const toggleJoin = (c, e) => {
+    if (e) e.stopPropagation();
+    if (!token) return;
+    fetch(API_BASE + "/communities/" + c._id + "/join", {
+      method: "POST",
+      headers: { Authorization: "Bearer " + token },
+    })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => {
+        if (!d) return;
+        const patch = { joined: d.joined, membersCount: d.membersCount };
+        setList((l) => l.map((x) => (x._id === c._id ? { ...x, ...patch } : x)));
+        setSelected((s) => (s && s._id === c._id ? { ...s, ...patch } : s));
+      })
+      .catch(() => {});
+  };
+
+  if (selected) {
+    return (
+      <section className="cm">
+        <div className="cm-head">
+          <button className="icon-btn" type="button" onClick={() => setSelected(null)} aria-label="Back">
+            <ArrowLeft size={20} />
+          </button>
+          <div className="cm-title">
+            <strong>{selected.name}</strong>
+            <span>{shortCount(selected.membersCount)} members</span>
+          </div>
+          <button
+            type="button"
+            className={"cm-join" + (selected.joined ? " joined" : "")}
+            onClick={(e) => toggleJoin(selected, e)}
+          >
+            {selected.joined ? "Joined" : "Join"}
+          </button>
+        </div>
+        <VideosFeed key={selected._id} token={token} userId={userId} community={selected.name} />
+      </section>
+    );
+  }
+
+  const cities = list.filter((c) => c.kind === "city");
+  const others = list.filter((c) => c.kind !== "city");
+
+  return (
+    <section className="cm">
+      <h2 className="cm-h">Communities</h2>
+
+      {error && (
+        <div className="feed-status feed-status-error" role="alert">
+          <span>{error}</span>
+          <button type="button" onClick={() => setRetry((n) => n + 1)}>Retry</button>
+        </div>
+      )}
+
+      {loading && list.length === 0 && (
+        <div className="cm-grid">
+          {[0, 1, 2, 3].map((i) => <div key={i} className="cm-card cm-skel" />)}
+        </div>
+      )}
+
+      <div className="cm-grid">
+        {cities.map((c, i) => {
+          const col = COMMUNITY_COLORS[i % COMMUNITY_COLORS.length];
+          return (
+            <button
+              key={c._id}
+              type="button"
+              className="cm-card"
+              style={{ background: "linear-gradient(135deg, " + col[0] + ", " + col[1] + ")" }}
+              onClick={() => setSelected(c)}
+            >
+              <span className="cm-letter">{c.name.slice(0, 1)}</span>
+              <strong>{c.name}</strong>
+              <span className="cm-count">{shortCount(c.membersCount)} members</span>
+              <span
+                role="button"
+                className={"cm-join sm" + (c.joined ? " joined" : "")}
+                onClick={(e) => toggleJoin(c, e)}
+              >
+                {c.joined ? "Joined" : "Join"}
+              </span>
+            </button>
+          );
+        })}
+      </div>
+
+      {others.map((c) => (
+        <div key={c._id} className="cm-row" onClick={() => setSelected(c)}>
+          <span className="vf-avatar">{c.name.slice(0, 1).toUpperCase()}</span>
+          <div className="cm-rowtext">
+            <strong>{c.name}</strong>
+            <span>{shortCount(c.membersCount)} members</span>
+          </div>
+          <button
+            type="button"
+            className={"cm-join sm" + (c.joined ? " joined" : "")}
+            onClick={(e) => toggleJoin(c, e)}
+          >
+            {c.joined ? "Joined" : "Join"}
+          </button>
+        </div>
+      ))}
+    </section>
+  );
+}
+
+function EditProfilePage({ token, profile, onClose, onSaved }) {
+  const { t, lang } = useT();
+  const [channelName, setChannelName] = useState(profile.channelName || "");
+  const [firstName, setFirstName] = useState(profile.firstName || "");
+  const [lastName, setLastName] = useState(profile.lastName || "");
+  const [gender, setGender] = useState(profile.gender || "");
+  const [dob, setDob] = useState(profile.dob || "");
+  const [bio, setBio] = useState(profile.bio || "");
+  const [country, setCountry] = useState(profile.country || "");
+  const [countryList, setCountryList] = useState([]);
+  const [nameState, setNameState] = useState({ ok: null, msg: "" });
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+  const [showPw, setShowPw] = useState(false);
+  const [curPw, setCurPw] = useState("");
+  const [newPw, setNewPw] = useState("");
+  const [confPw, setConfPw] = useState("");
+  const [pwMsg, setPwMsg] = useState({ ok: null, msg: "" });
+  const [pwBusy, setPwBusy] = useState(false);
+  const auth = { Authorization: "Bearer " + token };
+
+  useEffect(() => {
+    fetch(API_BASE + "/countries")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => {
+        if (d && Array.isArray(d.countries)) {
+          setCountryList(d.countries.slice().sort((a, b) => a.name.localeCompare(b.name)));
+        }
+      })
+      .catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    const name = channelName.trim();
+    if (name === profile.channelName) {
+      setNameState({ ok: null, msg: "" });
+      return;
+    }
+    if (name.length < 3) {
+      setNameState({ ok: false, msg: "Kam az kam 3 harf likhein" });
+      return;
+    }
+    setNameState({ ok: null, msg: "Check ho raha hai..." });
+    const t = setTimeout(() => {
+      fetch(API_BASE + "/users/check-name?name=" + encodeURIComponent(name), { headers: auth })
+        .then((r) => (r.ok ? r.json() : null))
+        .then((d) => {
+          if (d) setNameState({ ok: !!d.available, msg: d.available ? "Naam available hai ✓" : d.reason || "Naam available nahi" });
+        })
+        .catch(() => setNameState({ ok: null, msg: "" }));
+    }, 500);
+    return () => clearTimeout(t);
+  }, [channelName]);
+
+  const save = () => {
+    if (saving) return;
+    if (nameState.ok === false) { setError("Pehle channel name theek karein"); return; }
+    setSaving(true);
+    setError("");
+    fetch(API_BASE + "/users/me", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json", Authorization: "Bearer " + token },
+      body: JSON.stringify({
+        channelName: channelName.trim(),
+        firstName: firstName,
+        lastName: lastName,
+        gender: gender,
+        dob: dob,
+        bio: bio,
+        country: country,
+        language: lang === "en" ? "" : lang,
+      }),
+    })
+      .then((r) => r.json().then((d) => ({ ok: r.ok, d: d })))
+      .then((res) => {
+        if (!res.ok) { setError(res.d.error || "Save nahi ho saka"); return; }
+        onSaved(res.d.profile);
+      })
+      .catch(() => setError("Internet ka masla, dobara try karein"))
+      .finally(() => setSaving(false));
+  };
+
+  const changePassword = () => {
+    if (pwBusy) return;
+    if (newPw.length < 6) { setPwMsg({ ok: false, msg: "Naya password kam az kam 6 harf ka ho" }); return; }
+    if (newPw !== confPw) { setPwMsg({ ok: false, msg: "Dono naye password ek jaise nahi" }); return; }
+    setPwBusy(true);
+    setPwMsg({ ok: null, msg: "" });
+    fetch(API_BASE + "/users/me/password", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: "Bearer " + token },
+      body: JSON.stringify({ currentPassword: curPw, newPassword: newPw }),
+    })
+      .then((r) => r.json().then((d) => ({ ok: r.ok, d: d })))
+      .then((res) => {
+        if (!res.ok) { setPwMsg({ ok: false, msg: res.d.error || "Password nahi badla" }); return; }
+        setPwMsg({ ok: true, msg: "Password badal gaya ✓" });
+        setCurPw(""); setNewPw(""); setConfPw("");
+      })
+      .catch(() => setPwMsg({ ok: false, msg: "Internet ka masla" }))
+      .finally(() => setPwBusy(false));
+  };
+
+  return (
+    <div className="pc-page">
+      <div className="pc-pagehead">
+        <button className="icon-btn" type="button" onClick={onClose} aria-label="Back">
+          <ArrowLeft size={20} />
+        </button>
+        <h2>{t("edit.title")}</h2>
+      </div>
+
+      <label className="pc-field">
+        <span>{t("edit.channelName")}</span>
+        <input value={channelName} onChange={(e) => setChannelName(e.target.value)} maxLength={30} />
+        {nameState.msg && (
+          <em className={nameState.ok === true ? "ok" : nameState.ok === false ? "bad" : ""}>{nameState.msg}</em>
+        )}
+      </label>
+
+      <label className="pc-field">
+        <span>{t("edit.email")}</span>
+        <input value={profile.email || ""} readOnly />
+      </label>
+
+      <button type="button" className="pc-pwrow" onClick={() => setShowPw((v) => !v)}>
+        <span>{t("edit.password")}</span>
+        <span>{showPw ? "▲" : "▼"}</span>
+      </button>
+      {showPw && (
+        <div className="pc-pwbox">
+          <input type="password" value={curPw} onChange={(e) => setCurPw(e.target.value)} placeholder="Purana password" />
+          <input type="password" value={newPw} onChange={(e) => setNewPw(e.target.value)} placeholder="Naya password (kam az kam 6 harf)" />
+          <input type="password" value={confPw} onChange={(e) => setConfPw(e.target.value)} placeholder="Naya password dobara" />
+          {pwMsg.msg && <em className={pwMsg.ok ? "ok" : "bad"}>{pwMsg.msg}</em>}
+          <button type="button" onClick={changePassword} disabled={pwBusy}>{pwBusy ? "..." : "Password badlo"}</button>
+        </div>
+      )}
+
+      <label className="pc-field">
+        <span>{t("edit.firstName")}</span>
+        <input value={firstName} onChange={(e) => setFirstName(e.target.value)} maxLength={40} />
+      </label>
+      <label className="pc-field">
+        <span>{t("edit.lastName")}</span>
+        <input value={lastName} onChange={(e) => setLastName(e.target.value)} maxLength={40} />
+      </label>
+      <label className="pc-field">
+        <span>{t("edit.gender")}</span>
+        <select value={gender} onChange={(e) => setGender(e.target.value)}>
+          <option value="">Batana nahi chahta</option>
+          <option value="male">Male</option>
+          <option value="female">Female</option>
+          <option value="other">Other</option>
+        </select>
+      </label>
+      <label className="pc-field">
+        <span>{t("edit.country")}</span>
+        <select value={country} onChange={(e) => setCountry(e.target.value)}>
+          <option value="">{t("countries.pickPlaceholder")}</option>
+          {countryList.map((c) => <option key={c.code} value={c.code}>{flagOf(c.code)} {c.name}</option>)}
+        </select>
+      </label>
+      <label className="pc-field">
+        <span>{t("edit.language")}</span>
+        <select value={lang} onChange={(e) => setAppLanguage(e.target.value)}>
+          {Object.keys(LANGUAGE_NAMES).map((code) => <option key={code} value={code}>{LANGUAGE_NAMES[code]}</option>)}
+        </select>
+      </label>
+      <label className="pc-field">
+        <span>{t("edit.dob")}</span>
+        <input type="date" value={dob} onChange={(e) => setDob(e.target.value)} max={new Date().toISOString().slice(0, 10)} />
+      </label>
+      <label className="pc-field">
+        <span>{t("edit.bio")}</span>
+        <textarea value={bio} onChange={(e) => setBio(e.target.value)} maxLength={200} placeholder="Apne baare mein likhein (max 200)" />
+      </label>
+
+      {error && <p className="pc-error" role="alert">⚠ {error}</p>}
+      <button type="button" className="post-submit pc-save" disabled={saving} onClick={save}>
+        {saving ? "..." : t("edit.save")}
+      </button>
+    </div>
+  );
+}
+
+function ProfileChannel({ user, onLogout }) {
+  const { t } = useT();
+  const token = user && user.token;
+  const [profile, setProfile] = useState(null);
+  const [showVideos, setShowVideos] = useState(false);
+  const [editing, setEditing] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [info, setInfo] = useState(null);
+  const [toast, setToast] = useState("");
+  const [countryName, setCountryName] = useState("");
+
+  useEffect(() => {
+    if (!profile || !profile.country) { setCountryName(""); return; }
+    fetch(API_BASE + "/countries")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => {
+        const c = d && d.countries ? d.countries.find((x) => x.code === profile.country) : null;
+        setCountryName(c ? c.name : countryNameOf(profile.country));
+      })
+      .catch(() => setCountryName(countryNameOf(profile.country)));
+  }, [profile && profile.country]);
+
+  useEffect(() => {
+    if (!token) return;
+    fetch(API_BASE + "/users/me/profile", { headers: { Authorization: "Bearer " + token } })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => {
+        if (d && d.profile) setProfile(d.profile);
+      })
+      .catch(() => {});
+  }, [token]);
+
+  const flash = (msg) => {
+    setToast(msg);
+    setTimeout(() => setToast(""), 2200);
+  };
+
+  const shareProfile = () => {
+    const url = window.location.origin;
+    const text = (profile ? profile.channelName : "Mera channel") + " Ballonfly par";
+    if (navigator.share) {
+      navigator.share({ title: "Ballonfly", text: text, url: url }).catch(() => {});
+    } else if (navigator.clipboard) {
+      navigator.clipboard.writeText(url).then(() => flash("Link copy ho gaya")).catch(() => {});
+    }
+  };
+
+  const soon = (title) => {
+    setMenuOpen(false);
+    setInfo({ title: title, text: "Ye feature agle update mein aa raha hai." });
+  };
+
+  const showText = (title, text) => {
+    setMenuOpen(false);
+    setInfo({ title: title, text: text });
+  };
+
+  const n = (v) => shortCount(profile ? profile[v] : 0);
+
+  return (
+    <div className="pc">
+      <div className="pc-stats">
+        <div><strong>{n("videosCount")}</strong><span>{t("profile.videos")}</span></div>
+        <div><strong>{n("viewsTotal")}</strong><span>{t("profile.views")}</span></div>
+        <div><strong>{n("likesTotal")}</strong><span>{t("profile.likes")}</span></div>
+        <div><strong>{profile && profile.country ? <Flag code={profile.country} size={30} /> : "🌍"}</strong><span className="pc-cname">{profile && profile.country ? (countryName || countryNameOf(profile.country)) : t("profile.country")}</span></div>
+      </div>
+      {profile && profile.bio && <p className="pc-bio">{profile.bio}</p>}
+      <div className="pc-actions">
+        <button type="button" disabled={!profile} onClick={() => setEditing(true)}>{t("profile.edit")}</button>
+        <button type="button" onClick={shareProfile}><Share2 size={15} /> {t("profile.share")}</button>
+        <button type="button" className="pc-menu" onClick={() => setMenuOpen(true)} aria-label="Menu">☰</button>
+      </div>
+      <button type="button" className="pc-toggle" onClick={() => setShowVideos((v) => !v)}>
+        <span>{t("profile.myVideos", { n: profile ? profile.videosCount : 0 })}</span>
+        <span>{showVideos ? "▲" : "▼"}</span>
+      </button>
+      {showVideos && <VideosFeed token={token} userId={user && user.id} mine />}
+      {toast && <div className="pc-toast">{toast}</div>}
+
+      {editing && profile && (
+        <EditProfilePage
+          token={token}
+          profile={profile}
+          onClose={() => setEditing(false)}
+          onSaved={(p) => {
+            setProfile(p);
+            setEditing(false);
+            flash("Profile save ho gayi ✓");
+          }}
+        />
+      )}
+
+      {menuOpen && (
+        <div className="pc-overlay" onClick={() => setMenuOpen(false)}>
+          <div className="pc-drawer" onClick={(e) => e.stopPropagation()}>
+            <div className="pc-drawerhead">
+              <span className="vf-avatar">{((profile && profile.channelName) || "?").slice(0, 1).toUpperCase()}</span>
+              <strong>{profile ? profile.channelName : ""}</strong>
+            </div>
+            <button type="button" onClick={() => { setMenuOpen(false); setShowVideos(true); }}>Recent Uploads</button>
+            <button type="button" onClick={() => soon("Watch History")}>Watch History</button>
+            <button type="button" onClick={() => soon("Watch List")}>Watch List</button>
+            <button type="button" onClick={() => soon("Policy Violations")}>Policy Violations</button>
+            <button type="button" onClick={() => showText("Terms & Conditions", "Ballonfly istemal karke aap maante hain ke aap sirf apni ya ijazat wali videos daalenge, kisi ki tauheen ya nuqsan nahi karenge, aur qaanooni qawaneen ki pairwi karenge. Qawaid khilaf-warzi par video ya account band kiya ja sakta hai. (Ye abhi ka mukhtasar masauda hai.)")}>Terms & Conditions</button>
+            <button type="button" onClick={() => showText("Privacy Policy", "Hum aapka email, naam aur jo aap upload karte hain mehfooz rakhte hain. Aapka password hamesha encrypted rehta hai. Aapka data kisi ko bechne ke liye nahi hai. (Ye abhi ka mukhtasar masauda hai.)")}>Privacy Policy</button>
+            <button type="button" onClick={() => soon("Delete Your Account")}>Delete Your Account</button>
+            <button type="button" onClick={() => { setMenuOpen(false); if (onLogout) onLogout(); }}>Logout</button>
+          </div>
+        </div>
+      )}
+
+      {info && (
+        <div className="pc-overlay pc-center" onClick={() => setInfo(null)}>
+          <div className="pc-info" onClick={(e) => e.stopPropagation()}>
+            <h3>{info.title}</h3>
+            <p>{info.text}</p>
+            <button type="button" onClick={() => setInfo(null)}>OK</button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+const STRINGS = {
+  en: {
+    "nav.home": "Home", "nav.reels": "Reels", "nav.sparks": "Sparks", "nav.create": "Create", "nav.dm": "DM",
+    "nav.notifications": "Notifications", "nav.profile": "Profile", "nav.settings": "Settings",
+    "tabs.posts": "Posts", "tabs.videos": "Videos", "tabs.countries": "Countries",
+    "common.members": "{n} members", "common.save": "Save",
+    "countries.title": "Countries", "countries.active": "People from {n} countries have joined",
+    "countries.pickTitle": "Choose your country", "countries.pickHint": "So your country is counted in this list.",
+    "countries.pickPlaceholder": "Select country", "countries.mine": "Your country:", "countries.top": "Most people",
+    "countries.search": "Search countries...", "countries.noMembers": "No members yet", "countries.videos": "{n} videos",
+    "countries.noMatch": "No country found.", "countries.error": "Could not load countries",
+    "profile.videos": "Videos", "profile.views": "Views", "profile.likes": "Likes", "profile.country": "Country",
+    "profile.edit": "Edit Profile", "profile.share": "Share Profile", "profile.myVideos": "My Videos ({n})",
+    "edit.title": "Edit Profile", "edit.channelName": "Channel Name", "edit.email": "Email",
+    "edit.password": "Change Password", "edit.firstName": "First Name", "edit.lastName": "Last Name",
+    "edit.gender": "Gender", "edit.country": "Country", "edit.language": "Language", "edit.dob": "Date of Birth",
+    "edit.bio": "Bio", "edit.save": "SAVE CHANGES",
+    "lang.suggest": "Your country's language is {lang}. Switch the app to it?", "lang.switch": "Switch", "lang.later": "Not now",
+  },
+  ur: {
+    "nav.home": "ہوم", "nav.reels": "ریلز", "nav.sparks": "اسپارکس", "nav.create": "بنائیں", "nav.dm": "پیغامات",
+    "nav.notifications": "اطلاعات", "nav.profile": "پروفائل", "nav.settings": "سیٹنگز",
+    "tabs.posts": "پوسٹس", "tabs.videos": "ویڈیوز", "tabs.countries": "ممالک",
+    "common.members": "{n} ممبرز", "common.save": "محفوظ کریں",
+    "countries.title": "ممالک", "countries.active": "{n} ممالک کے لوگ شامل ہو چکے ہیں",
+    "countries.pickTitle": "اپنا ملک منتخب کریں", "countries.pickHint": "تاکہ آپ کا ملک اس فہرست میں گنا جائے۔",
+    "countries.pickPlaceholder": "ملک منتخب کریں", "countries.mine": "آپ کا ملک:", "countries.top": "سب سے زیادہ لوگ",
+    "countries.search": "ممالک تلاش کریں...", "countries.noMembers": "ابھی کوئی ممبر نہیں", "countries.videos": "{n} ویڈیوز",
+    "countries.noMatch": "کوئی ملک نہیں ملا۔", "countries.error": "ممالک لوڈ نہیں ہو سکے",
+    "profile.videos": "ویڈیوز", "profile.views": "ویوز", "profile.likes": "لائکس", "profile.country": "ملک",
+    "profile.edit": "پروفائل ایڈٹ کریں", "profile.share": "پروفائل شیئر کریں", "profile.myVideos": "میری ویڈیوز ({n})",
+    "edit.title": "پروفائل ایڈٹ کریں", "edit.channelName": "چینل کا نام", "edit.email": "ای میل",
+    "edit.password": "پاسورڈ تبدیل کریں", "edit.firstName": "پہلا نام", "edit.lastName": "آخری نام",
+    "edit.gender": "جنس", "edit.country": "ملک", "edit.language": "زبان", "edit.dob": "تاریخ پیدائش",
+    "edit.bio": "تعارف", "edit.save": "تبدیلیاں محفوظ کریں",
+    "lang.suggest": "آپ کے ملک کی زبان {lang} ہے۔ ایپ اس میں بدلیں؟", "lang.switch": "بدلیں", "lang.later": "ابھی نہیں",
+  },
+  ar: {
+    "nav.home": "الرئيسية", "nav.reels": "ريلز", "nav.sparks": "سباركس", "nav.create": "إنشاء", "nav.dm": "الرسائل",
+    "nav.notifications": "الإشعارات", "nav.profile": "الملف الشخصي", "nav.settings": "الإعدادات",
+    "tabs.posts": "المنشورات", "tabs.videos": "الفيديوهات", "tabs.countries": "الدول",
+    "common.members": "{n} عضو", "common.save": "حفظ",
+    "countries.title": "الدول", "countries.active": "انضم أشخاص من {n} دولة",
+    "countries.pickTitle": "اختر بلدك", "countries.pickHint": "ليتم احتساب بلدك في هذه القائمة.",
+    "countries.pickPlaceholder": "اختر الدولة", "countries.mine": "بلدك:", "countries.top": "الأكثر أعضاءً",
+    "countries.search": "ابحث عن دولة...", "countries.noMembers": "لا يوجد أعضاء بعد", "countries.videos": "{n} فيديو",
+    "countries.noMatch": "لم يتم العثور على دولة.", "countries.error": "تعذّر تحميل الدول",
+    "profile.videos": "الفيديوهات", "profile.views": "المشاهدات", "profile.likes": "الإعجابات", "profile.country": "الدولة",
+    "profile.edit": "تعديل الملف الشخصي", "profile.share": "مشاركة الملف الشخصي", "profile.myVideos": "فيديوهاتي ({n})",
+    "edit.title": "تعديل الملف الشخصي", "edit.channelName": "اسم القناة", "edit.email": "البريد الإلكتروني",
+    "edit.password": "تغيير كلمة المرور", "edit.firstName": "الاسم الأول", "edit.lastName": "اسم العائلة",
+    "edit.gender": "الجنس", "edit.country": "الدولة", "edit.language": "اللغة", "edit.dob": "تاريخ الميلاد",
+    "edit.bio": "نبذة", "edit.save": "حفظ التغييرات",
+    "lang.suggest": "لغة بلدك هي {lang}. هل تريد تغيير التطبيق إليها؟", "lang.switch": "تغيير", "lang.later": "ليس الآن",
+  },
+  hi: {
+    "nav.home": "होम", "nav.reels": "रील्स", "nav.sparks": "स्पार्क्स", "nav.create": "बनाएँ", "nav.dm": "संदेश",
+    "nav.notifications": "सूचनाएँ", "nav.profile": "प्रोफ़ाइल", "nav.settings": "सेटिंग्स",
+    "tabs.posts": "पोस्ट", "tabs.videos": "वीडियो", "tabs.countries": "देश",
+    "common.members": "{n} सदस्य", "common.save": "सहेजें",
+    "countries.title": "देश", "countries.active": "{n} देशों के लोग जुड़ चुके हैं",
+    "countries.pickTitle": "अपना देश चुनें", "countries.pickHint": "ताकि आपका देश इस सूची में गिना जाए।",
+    "countries.pickPlaceholder": "देश चुनें", "countries.mine": "आपका देश:", "countries.top": "सबसे ज़्यादा लोग",
+    "countries.search": "देश खोजें...", "countries.noMembers": "अभी कोई सदस्य नहीं", "countries.videos": "{n} वीडियो",
+    "countries.noMatch": "कोई देश नहीं मिला।", "countries.error": "देश लोड नहीं हो सके",
+    "profile.videos": "वीडियो", "profile.views": "व्यूज़", "profile.likes": "लाइक्स", "profile.country": "देश",
+    "profile.edit": "प्रोफ़ाइल संपादित करें", "profile.share": "प्रोफ़ाइल शेयर करें", "profile.myVideos": "मेरे वीडियो ({n})",
+    "edit.title": "प्रोफ़ाइल संपादित करें", "edit.channelName": "चैनल का नाम", "edit.email": "ईमेल",
+    "edit.password": "पासवर्ड बदलें", "edit.firstName": "पहला नाम", "edit.lastName": "अंतिम नाम",
+    "edit.gender": "लिंग", "edit.country": "देश", "edit.language": "भाषा", "edit.dob": "जन्म तिथि",
+    "edit.bio": "परिचय", "edit.save": "बदलाव सहेजें",
+    "lang.suggest": "आपके देश की भाषा {lang} है। ऐप को इसमें बदलें?", "lang.switch": "बदलें", "lang.later": "अभी नहीं",
+  },
+  es: {
+    "nav.home": "Inicio", "nav.reels": "Reels", "nav.sparks": "Sparks", "nav.create": "Crear", "nav.dm": "Mensajes",
+    "nav.notifications": "Notificaciones", "nav.profile": "Perfil", "nav.settings": "Ajustes",
+    "tabs.posts": "Publicaciones", "tabs.videos": "Vídeos", "tabs.countries": "Países",
+    "common.members": "{n} miembros", "common.save": "Guardar",
+    "countries.title": "Países", "countries.active": "Ya se han unido personas de {n} países",
+    "countries.pickTitle": "Elige tu país", "countries.pickHint": "Para que tu país cuente en esta lista.",
+    "countries.pickPlaceholder": "Selecciona un país", "countries.mine": "Tu país:", "countries.top": "Más personas",
+    "countries.search": "Buscar países...", "countries.noMembers": "Aún no hay miembros", "countries.videos": "{n} vídeos",
+    "countries.noMatch": "No se encontró ningún país.", "countries.error": "No se pudieron cargar los países",
+    "profile.videos": "Vídeos", "profile.views": "Visitas", "profile.likes": "Me gusta", "profile.country": "País",
+    "profile.edit": "Editar perfil", "profile.share": "Compartir perfil", "profile.myVideos": "Mis vídeos ({n})",
+    "edit.title": "Editar perfil", "edit.channelName": "Nombre del canal", "edit.email": "Correo electrónico",
+    "edit.password": "Cambiar contraseña", "edit.firstName": "Nombre", "edit.lastName": "Apellido",
+    "edit.gender": "Género", "edit.country": "País", "edit.language": "Idioma", "edit.dob": "Fecha de nacimiento",
+    "edit.bio": "Biografía", "edit.save": "GUARDAR CAMBIOS",
+    "lang.suggest": "El idioma de tu país es {lang}. ¿Cambiar la app a este idioma?", "lang.switch": "Cambiar", "lang.later": "Ahora no",
+  },
+  fr: {
+    "nav.home": "Accueil", "nav.reels": "Reels", "nav.sparks": "Sparks", "nav.create": "Créer", "nav.dm": "Messages",
+    "nav.notifications": "Notifications", "nav.profile": "Profil", "nav.settings": "Paramètres",
+    "tabs.posts": "Publications", "tabs.videos": "Vidéos", "tabs.countries": "Pays",
+    "common.members": "{n} membres", "common.save": "Enregistrer",
+    "countries.title": "Pays", "countries.active": "Des personnes de {n} pays nous ont rejoints",
+    "countries.pickTitle": "Choisissez votre pays", "countries.pickHint": "Pour que votre pays soit compté dans cette liste.",
+    "countries.pickPlaceholder": "Sélectionner un pays", "countries.mine": "Votre pays :", "countries.top": "Le plus de monde",
+    "countries.search": "Rechercher un pays...", "countries.noMembers": "Aucun membre pour l'instant", "countries.videos": "{n} vidéos",
+    "countries.noMatch": "Aucun pays trouvé.", "countries.error": "Impossible de charger les pays",
+    "profile.videos": "Vidéos", "profile.views": "Vues", "profile.likes": "J'aime", "profile.country": "Pays",
+    "profile.edit": "Modifier le profil", "profile.share": "Partager le profil", "profile.myVideos": "Mes vidéos ({n})",
+    "edit.title": "Modifier le profil", "edit.channelName": "Nom de la chaîne", "edit.email": "E-mail",
+    "edit.password": "Changer le mot de passe", "edit.firstName": "Prénom", "edit.lastName": "Nom",
+    "edit.gender": "Genre", "edit.country": "Pays", "edit.language": "Langue", "edit.dob": "Date de naissance",
+    "edit.bio": "Bio", "edit.save": "ENREGISTRER LES MODIFICATIONS",
+    "lang.suggest": "La langue de votre pays est {lang}. Passer l'application dans cette langue ?", "lang.switch": "Changer", "lang.later": "Pas maintenant",
+  },
+};
+
+const RTL_LANGS = ["ur", "ar", "fa", "ps"];
+const LANGUAGE_NAMES = { en: "English", ur: "اردو", ar: "العربية", hi: "हिन्दी", es: "Español", fr: "Français" };
+const LANG_KEY = "ballonfly_lang";
+
+let currentLang = "en";
+try {
+  const savedLang = localStorage.getItem(LANG_KEY);
+  if (savedLang && STRINGS[savedLang]) currentLang = savedLang;
+} catch (e) {}
+const langListeners = new Set();
+
+function applyLangToDocument(code) {
+  try {
+    document.documentElement.lang = code;
+    document.documentElement.dir = RTL_LANGS.indexOf(code) !== -1 ? "rtl" : "ltr";
+  } catch (e) {}
+}
+applyLangToDocument(currentLang);
+
+function setAppLanguage(code) {
+  const next = STRINGS[code] ? code : "en";
+  currentLang = next;
+  try { localStorage.setItem(LANG_KEY, next); } catch (e) {}
+  applyLangToDocument(next);
+  langListeners.forEach((fn) => fn());
+}
+
+function translate(key, vars) {
+  const table = STRINGS[currentLang] || {};
+  let str = table[key] || STRINGS.en[key] || key;
+  if (vars) {
+    Object.keys(vars).forEach((k) => { str = str.split("{" + k + "}").join(String(vars[k])); });
+  }
+  return str;
+}
+
+function useT() {
+  const lang = React.useSyncExternalStore(
+    (cb) => { langListeners.add(cb); return () => langListeners.delete(cb); },
+    () => currentLang
+  );
+  return { t: translate, lang: lang };
+}
+
+function saveLanguageToServer(token, code) {
+  if (!token) return;
+  fetch(API_BASE + "/users/me", {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json", Authorization: "Bearer " + token },
+    body: JSON.stringify({ language: code === "en" ? "" : code }),
+  }).catch(() => {});
+}
+
+function LanguageSync({ token }) {
+  useEffect(() => {
+    if (!token) return;
+    let cancelled = false;
+    fetch(API_BASE + "/users/me/profile", { headers: { Authorization: "Bearer " + token } })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => {
+        if (!cancelled && d && d.profile) setAppLanguage(d.profile.language || "en");
+      })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, [token]);
+  return null;
+}
+
+function LanguageSuggest({ countryCode, token }) {
+  const { t, lang } = useT();
+  const [info, setInfo] = useState(null);
+  const [hidden, setHidden] = useState(false);
+
+  useEffect(() => {
+    fetch(API_BASE + "/languages")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => {
+        if (d) setInfo(d);
+      })
+      .catch(() => {});
+  }, []);
+
+  if (hidden || !info || !countryCode) return null;
+  const code = info.countryLanguage[countryCode];
+  if (!code || code === lang || !STRINGS[code]) return null;
+  const dismissKey = "ballonfly_lang_dismiss_" + code;
+  try {
+    if (localStorage.getItem(dismissKey)) return null;
+  } catch (e) {}
+  const meta = info.languages.find((l) => l.code === code);
+
+  const apply = () => {
+    setAppLanguage(code);
+    saveLanguageToServer(token, code);
+    setHidden(true);
+  };
+  const dismiss = () => {
+    try { localStorage.setItem(dismissKey, "1"); } catch (e) {}
+    setHidden(true);
+  };
+
+  return (
+    <div className="wd-banner">
+      <strong>{t("lang.suggest", { lang: meta ? meta.name : code })}</strong>
+      <div className="wd-pick">
+        <button type="button" onClick={apply}>{STRINGS[code]["lang.switch"]}</button>
+        <button type="button" className="lang-later" onClick={dismiss}>{t("lang.later")}</button>
+      </div>
+    </div>
+  );
+}
+
+function Flag({ code, size }) {
+  const [bad, setBad] = useState(false);
+  if (!code || code.length !== 2 || bad) return <span className="flag-fallback">🌍</span>;
+  const c = code.toLowerCase();
+  const w = size || 28;
+  return (
+    <img
+      className="flag-img"
+      src={"https://flagcdn.com/w40/" + c + ".png"}
+      srcSet={"https://flagcdn.com/w80/" + c + ".png 2x"}
+      width={w}
+      height={Math.round(w * 0.75)}
+      alt=""
+      loading="lazy"
+      onError={() => setBad(true)}
+    />
+  );
+}
+
+function countryNameOf(code) {
+  try {
+    const name = new Intl.DisplayNames(["en"], { type: "region" }).of(String(code).toUpperCase());
+    return name || code;
+  } catch (e) {
+    return code;
+  }
+}
+
+function flagOf(code) {
+  if (!code || code.length !== 2) return "🌍";
+  return String.fromCodePoint.apply(
+    null,
+    code.toUpperCase().split("").map(function (c) { return 127397 + c.charCodeAt(0); })
+  );
+}
+
+function CountriesView({ token, userId }) {
+  const { t } = useT();
+  const [data, setData] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [query, setQuery] = useState("");
+  const [selected, setSelected] = useState(null);
+  const [retry, setRetry] = useState(0);
+  const [pick, setPick] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [saveErr, setSaveErr] = useState("");
+
+  useEffect(() => {
+    let cancelled = false;
+    setLoading(true);
+    setError("");
+    const headers = token ? { Authorization: "Bearer " + token } : {};
+    fetch(API_BASE + "/countries", { headers: headers })
+      .then((r) => (r.ok ? r.json() : Promise.reject(new Error("bad"))))
+      .then((d) => {
+        if (!cancelled) setData(d);
+      })
+      .catch(() => {
+        if (!cancelled) setError(t("countries.error"));
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => { cancelled = true; };
+  }, [token, retry]);
+
+  const saveCountry = () => {
+    if (!pick || !token || saving) return;
+    setSaving(true);
+    setSaveErr("");
+    fetch(API_BASE + "/users/me", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json", Authorization: "Bearer " + token },
+      body: JSON.stringify({ country: pick }),
+    })
+      .then((r) => r.json().then((d) => ({ ok: r.ok, d: d })))
+      .then((res) => {
+        if (!res.ok) { setSaveErr(res.d.error || "Could not save"); return; }
+        setPick("");
+        setRetry((n) => n + 1);
+      })
+      .catch(() => setSaveErr("Network problem, please try again"))
+      .finally(() => setSaving(false));
+  };
+
+  if (selected) {
+    return (
+      <section className="cm">
+        <div className="cm-head">
+          <button className="icon-btn" type="button" onClick={() => setSelected(null)} aria-label="Back">
+            <ArrowLeft size={20} />
+          </button>
+          <div className="cm-title">
+            <strong><Flag code={selected.code} size={22} /> {selected.name}</strong>
+            <span>{t("common.members", { n: shortCount(selected.membersCount) })}</span>
+          </div>
+        </div>
+        <VideosFeed key={selected.code} token={token} userId={userId} community={selected.name} />
+      </section>
+    );
+  }
+
+  const list = data ? data.countries : [];
+  const q = query.trim().toLowerCase();
+  const filtered = q ? list.filter((c) => c.name.toLowerCase().indexOf(q) !== -1) : list;
+  const top = list.filter((c) => c.membersCount > 0).slice(0, 6);
+  const alpha = list.slice().sort((a, b) => a.name.localeCompare(b.name));
+  const mine = data && data.mine ? list.find((c) => c.code === data.mine) : null;
+
+  return (
+    <section className="cm">
+      <h2 className="cm-h">{t("countries.title")}</h2>
+
+      {error && (
+        <div className="feed-status feed-status-error" role="alert">
+          <span>{error}</span>
+          <button type="button" onClick={() => setRetry((n) => n + 1)}>Retry</button>
+        </div>
+      )}
+
+      {loading && !data && (
+        <div className="cm-grid">
+          {[0, 1, 2, 3].map((i) => <div key={i} className="cm-card cm-skel" />)}
+        </div>
+      )}
+
+      {data && (
+        <div className="wd-sum">
+          <span className="wd-sumflag">🌍</span>
+          <div>
+            <strong>{t("common.members", { n: shortCount(data.totalUsers) })}</strong>
+            <span>{t("countries.active", { n: data.activeCountries })}</span>
+          </div>
+        </div>
+      )}
+
+      {data && token && !data.mine && (
+        <div className="wd-banner">
+          <strong>{t("countries.pickTitle")}</strong>
+          <span>{t("countries.pickHint")}</span>
+          <div className="wd-pick">
+            <select value={pick} onChange={(e) => setPick(e.target.value)}>
+              <option value="">{t("countries.pickPlaceholder")}</option>
+              {alpha.map((c) => <option key={c.code} value={c.code}>{flagOf(c.code)} {c.name}</option>)}
+            </select>
+            <button type="button" onClick={saveCountry} disabled={!pick || saving}>{saving ? "..." : t("common.save")}</button>
+          </div>
+          {saveErr && <em>⚠ {saveErr}</em>}
+        </div>
+      )}
+
+      {mine && <p className="wd-mine">{t("countries.mine")} <Flag code={mine.code} size={20} /> {mine.name}</p>}
+
+      {data && data.mine && <LanguageSuggest countryCode={data.mine} token={token} />}
+
+      {top.length > 0 && (
+        <>
+          <h3 className="wd-h3">{t("countries.top")}</h3>
+          <div className="cm-grid">
+            {top.map((c, i) => {
+              const col = COMMUNITY_COLORS[i % COMMUNITY_COLORS.length];
+              return (
+                <button
+                  key={c.code}
+                  type="button"
+                  className="cm-card"
+                  style={{ background: "linear-gradient(135deg, " + col[0] + ", " + col[1] + ")" }}
+                  onClick={() => setSelected(c)}
+                >
+                  <span className="wd-bigflag"><Flag code={c.code} size={56} /></span>
+                  <strong>{c.name}</strong>
+                  <span className="cm-count">{t("common.members", { n: shortCount(c.membersCount) })}</span>
+                </button>
+              );
+            })}
+          </div>
+        </>
+      )}
+
+      {data && (
+        <>
+          <input
+            className="wd-search"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder={t("countries.search")}
+          />
+          {filtered.map((c) => (
+            <div
+              key={c.code}
+              className={"wd-row" + (data.mine === c.code ? " mine" : "")}
+              onClick={() => setSelected(c)}
+            >
+              <span className="wd-flag"><Flag code={c.code} size={30} /></span>
+              <div className="cm-rowtext">
+                <strong>{c.name}</strong>
+                <span>
+                  {c.membersCount > 0 ? t("common.members", { n: shortCount(c.membersCount) }) : t("countries.noMembers")}
+                  {c.videosCount > 0 ? " · " + t("countries.videos", { n: c.videosCount }) : ""}
+                </span>
+              </div>
+              <span className="wd-arrow">›</span>
+            </div>
+          ))}
+          {filtered.length === 0 && <p className="feed-status">{t("countries.noMatch")}</p>}
+        </>
+      )}
+    </section>
+  );
+}
+
+function AuthScreen({ onAuth }) {
+  const [mode, setMode] = useState("login"); // "login" | "signup"
+  const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [confirm, setConfirm] = useState("");
+  const [agree, setAgree] = useState(false);
+  const [remember, setRemember] = useState(true);
+  const [showPass, setShowPass] = useState(false);
+  const [showConfirm, setShowConfirm] = useState(false);
+  const [toast, setToast] = useState("");
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
+  const toastTimer = useRef(null);
+  const showToast = (m) => {
+    setToast(m);
+    clearTimeout(toastTimer.current);
+    toastTimer.current = setTimeout(() => setToast(""), 3000);
+  };
+  useEffect(() => () => clearTimeout(toastTimer.current), []);
+  useEffect(() => {
+    if (!error) return undefined;
+    const t = setTimeout(() => setError(""), 3200);
+    return () => clearTimeout(t);
+  }, [error]);
+  useEffect(() => {
+    try { const saved = localStorage.getItem("ballonfly_email"); if (saved) setEmail(saved); } catch (e) { /* ignore */ }
+  }, []);
+  const switchMode = (m) => { setMode(m); setError(""); setShowPass(false); setShowConfirm(false); };
+
+  const submit = async (e) => {
+    e.preventDefault();
+    setError("");
+    if (!email.includes("@")) return setError("Sahi email address daalein");
+    if (password.length < 6) return setError("Password kam se kam 6 characters ka ho");
+    if (mode === "signup" && !name.trim()) return setError("Apna naam daalein");
+    if (mode === "signup" && password !== confirm) return setError("Passwords match nahi karte");
+    if (mode === "signup" && !agree) return setError("Terms se agree karna zaroori hai");
+
+    setLoading(true);
+    try {
+      const endpoint = mode === "signup" ? "/auth/signup" : "/auth/login";
+      const body =
+        mode === "signup"
+          ? { username: email.split("@")[0] + Date.now(), email, password, displayName: name }
+          : { email, password };
+
+      const res = await fetch(API_BASE + endpoint, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      const data = await res.json();
+
+      if (!res.ok) {
+        setLoading(false);
+        return setError(data.error || "Kuch masla ho gaya, dobara try karein");
+      }
+
+      setLoading(false);
+      try {
+        if (remember) localStorage.setItem("ballonfly_email", email);
+        else localStorage.removeItem("ballonfly_email");
+      } catch (e) { /* ignore */ }
+      showToast(mode === "signup" ? "Account created successfully!" : "Login successful!");
+      onAuth({
+        name: data.user.displayName || data.user.username,
+        email,
+        token: data.token,
+        id: data.user.id,
+      });
+    } catch (err) {
+      setLoading(false);
+      setError("Server tak nahi pohanch paaye. Internet check karein.");
+    }
+  };
+
+  const loginActive = mode === "login";
+  return (
+    <div className="auth-root">
+      <style>{`
+.auth-root {
+  min-height: 100vh; display: flex; justify-content: center; align-items: center; padding: 20px;
+  background: #e6ecef; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+}
+.auth-root * { box-sizing: border-box; margin: 0; padding: 0; font-family: inherit; }
+.auth-toast {
+  position: fixed; top: -70px; left: 50%; transform: translateX(-50%); background: #e6ecef; color: #007aff;
+  padding: 12px 24px; border-radius: 30px; font-size: 14px; font-weight: 600; display: flex; align-items: center; gap: 10px;
+  box-shadow: 6px 6px 16px #c5cbce, -6px -6px 16px #ffffff; transition: top 0.4s ease-in-out; z-index: 1000; max-width: 92vw;
+}
+.auth-toast.show { top: 25px; }
+.auth-toast.err { color: #d93025; }
+.auth-card {
+  width: min(360px, 100%); background: #e6ecef; border-radius: 35px; padding: 30px 25px; position: relative; overflow: hidden;
+  box-shadow: 12px 12px 28px #c5cbce, -12px -12px 28px #ffffff; min-height: 540px; transition: min-height 0.4s ease-in-out;
+}
+.auth-card.signup { min-height: 610px; }
+.auth-form-wrap {
+  display: flex; flex-direction: column; align-items: center; position: absolute; top: 30px; left: 25px;
+  width: calc(100% - 50px); transition: all 0.4s ease-in-out; opacity: 0; pointer-events: none;
+}
+.auth-form-wrap.sign-in { transform: translateX(0); }
+.auth-form-wrap.sign-up { transform: translateX(100%); }
+.auth-form-wrap.active { opacity: 1; pointer-events: all; transform: translateX(0) !important; }
+.auth-form-wrap.exit-left { transform: translateX(-100%) !important; opacity: 0; }
+.brand-header { display: flex; flex-direction: column; align-items: center; margin-bottom: 8px; }
+.brand-logo { width: 70px; height: auto; object-fit: contain; filter: drop-shadow(3px 3px 6px rgba(0, 0, 0, 0.12)); }
+.brand-name { margin-top: 4px; line-height: 0; }
+.brand-wordmark { display: flex; align-items: center; height: 36px; }
+.brand-wordmark img { height: 100%; width: auto; display: block; }
+.wm-ballon {
+  filter: drop-shadow(0.8px 0 0 #000) drop-shadow(-0.8px 0 0 #000) drop-shadow(0 0.8px 0 #000) drop-shadow(0 -0.8px 0 #000) drop-shadow(0 3px 5px rgba(20, 30, 60, 0.25));
+}
+.wm-fly { filter: drop-shadow(0 3px 5px rgba(20, 30, 60, 0.18)); }
+.auth-title { font-size: 20px; font-weight: 700; color: #2d3748; margin-bottom: 2px; }
+.auth-subtitle { font-size: 12px; color: #718096; margin-bottom: 20px; text-align: center; }
+.auth-form-wrap form { width: 100%; }
+.input-group { position: relative; margin-bottom: 16px; width: 100%; }
+.input-group input[type="text"], .input-group input[type="email"], .input-group input[type="password"] {
+  width: 100%; padding: 13px 16px 13px 45px; border: none; outline: none; background: #e6ecef; border-radius: 20px;
+  font-size: 14px; color: #2d3748; box-shadow: inset 4px 4px 8px #c5cbce, inset -4px -4px 8px #ffffff; transition: all 0.2s ease;
+}
+.input-group input::placeholder { color: #a0aec0; }
+.input-group input:focus { box-shadow: inset 5px 5px 10px #c5cbce, inset -5px -5px 10px #ffffff; }
+.input-icon { position: absolute; left: 16px; top: 50%; transform: translateY(-50%); color: #a0aec0; pointer-events: none; display: grid; }
+.password-group input { padding-right: 45px !important; }
+.eye-btn { position: absolute; right: 15px; top: 50%; transform: translateY(-50%); background: none; border: none; color: #718096; cursor: pointer; padding: 5px; display: grid; }
+.eye-btn:hover { color: #007aff; }
+.form-options { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; font-size: 12px; padding: 0 4px; }
+.checkbox-container { display: flex; align-items: center; cursor: pointer; color: #718096; user-select: none; }
+.checkbox-container input { display: none; }
+.checkmark { width: 18px; height: 18px; border-radius: 6px; background: #e6ecef; box-shadow: inset 2px 2px 5px #c5cbce, inset -2px -2px 5px #ffffff; margin-right: 8px; position: relative; transition: all 0.2s ease; flex-shrink: 0; }
+.checkbox-container input:checked ~ .checkmark { box-shadow: 2px 2px 5px #c5cbce, -2px -2px 5px #ffffff; }
+.checkmark:after { content: ""; position: absolute; display: none; left: 6px; top: 2px; width: 4px; height: 9px; border: solid #007aff; border-width: 0 2px 2px 0; transform: rotate(45deg); }
+.checkbox-container input:checked ~ .checkmark:after { display: block; }
+.forgot-pass { color: #007aff; text-decoration: none; font-weight: 600; background: none; border: none; cursor: pointer; font-size: 12px; }
+.forgot-pass:hover { text-decoration: underline; }
+.submit-btn {
+  width: 100%; padding: 13px; border: none; border-radius: 20px; background: #e6ecef; color: #007aff; font-size: 15px; font-weight: 700;
+  cursor: pointer; box-shadow: 6px 6px 14px #c5cbce, -6px -6px 14px #ffffff; transition: all 0.2s ease; margin-bottom: 20px;
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+}

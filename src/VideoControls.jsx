@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Play, Pause } from "lucide-react";
 
-const ACCENT = "#ff4d6d";
+const ACCENT = "#19c6f5";
 
 export default function VideoControls({ videoRef, showCenter = true }) {
   const trackRef = useRef(null);
