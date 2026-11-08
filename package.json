@@ -1,14 +1,12 @@
 {
   "name": "ballonfly-frontend",
-  "version": "1.0.0",
+  "version": "2.0.0",
   "private": true,
   "type": "module",
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "preview": "vite preview",
-    "predev": "node scripts/join-app.mjs",
-    "prebuild": "node scripts/join-app.mjs"
+    "preview": "vite preview"
   },
   "dependencies": {
     "lucide-react": "^0.383.0",

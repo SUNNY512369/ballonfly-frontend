@@ -1,8 +1,5 @@
 node_modules/
 dist/
 .env
-.agents
-.cache
-.local
-.vite
-*.zip
+package-lock.json
+package-lock.json
