@@ -1,0 +1,38 @@
+/* Ballonfly theme: dark navy + cyan/blue/purple (design screens ke mutabiq) */
+:root {
+  --bg: #030a1c;
+  --bg-2: #061330;
+  --card: #0a1a3f;
+  --card-2: #0d2252;
+  --line: rgba(0, 207, 255, 0.28);
+  --text: #f4f8ff;
+  --muted: #9db4d9;
+  --cyan: #00e5ff;
+  --blue: #2563eb;
+  --purple: #8a42ff;
+  --pink: #c45bff;
+  --green: #22d36b;
+  --red: #ff3b5c;
+  --amber: #ffb020;
+  --grad: linear-gradient(90deg, #00e5ff, #2563eb 55%, #8a42ff);
+  --grad-btn: linear-gradient(90deg, #00f0ff, #b58cff);
+  --radius: 16px;
+  --radius-pill: 999px;
+  --font: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+
+* { box-sizing: border-box; }
+html, body, #root { height: 100%; }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font);
+  -webkit-font-smoothing: antialiased;
+}
+button { font-family: inherit; cursor: pointer; }
+a { color: var(--cyan); }
+:focus-visible { outline: 2px solid var(--cyan); outline-offset: 2px; }
+@media (prefers-reduced-motion: reduce) {
+  * { animation: none !important; transition: none !important; }
+}
