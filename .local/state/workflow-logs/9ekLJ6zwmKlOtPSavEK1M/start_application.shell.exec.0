@@ -1,0 +1,9 @@
+
+> ballonfly-frontend@1.0.0 predev
+> node scripts/join-app.mjs
+
+[1G[0K
+❌ App.jsx nahi ban saki: src/parts/manifest.json nahi mili
+   src/parts folder ki saari files dobara upload karein.
+
+[1G[0K⠙[1G[0K

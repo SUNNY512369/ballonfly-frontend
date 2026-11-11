@@ -1,0 +1,247 @@
+---
+name: deployment
+description: Use when the user asks to publish, deploy, or configure deployment settings, deployment geography or regions, when the user reports their deployed app is broken, asks about production errors, or wants to check server logs, or whenever you need the app's production/published URL.
+---
+
+# Deployment Skill
+
+Configure deployment settings, publish your project, and debug deployment issues.
+
+## When to Use
+
+Use this skill when:
+
+- Configuring how the project should run in production
+- The project is in a working state and ready for publishing
+- The user explicitly asks to publish or deploy the project
+- You've completed implementing a feature and verified it works
+- Setting up deployment for different project types (websites, bots, scheduled jobs)
+- The user reports their deployed application is not working correctly
+- The user wants to see what errors are occurring in production
+- The user needs to debug a runtime issue with their deployed app
+- The user asks to check deployment or server logs
+- The user wants an external service (a webhook sender, CI pipeline, uptime monitor, or other automated caller) to reach their app, or needs a callback/webhook URL to hand to a third party
+- The user says their app failed to publish or a deployment build failed
+- After a deployment attempt that the agent initiated fails
+
+## When NOT to Use
+
+- Project has known errors or incomplete features
+- You haven't validated that the project works
+- The user is just testing or prototyping
+
+## Runtime Investigation Belongs to the SRE Skill
+
+Anything that needs the app's own runtime output -- it published and is erroring,
+it is slow, it crashed on startup, it never answered the startup probe -- belongs
+to the `site-reliability-engineer` skill. Hand off rather than reading runtime
+logs here.
+
+That skill can scope logs to a specific deployment revision. `fetchDeploymentLogs`
+cannot: it is pinned to the currently serving build, so during a failed promote it
+returns the *previous* build's output and not the crashed revision's.
+
+Build failures stay here -- compilation, dependency install, a non-zero build
+command, run command and `publicDir` configuration. The split is by data source:
+build logs and config here, runtime output there.
+
+## Reference Documents
+
+This skill has additional reference documents for specific deployment scenarios. Read them as needed:
+
+- `.local/skills/deployment/references/deployment-logs.md` -- How to fetch and analyze runtime deployment logs. Read this when the user's deployed app is misbehaving, the live site is down, or they want to check production logs.
+- `.local/skills/deployment/references/deployment-failure-debugging.md` -- How to diagnose and fix deployment build failures. Read this when the user's deployment build fails to publish, the app crashes during the publishing step, or the user asks for help debugging a deployment error.
+## Opening publishing panes
+
+You can render a one-click "Open in <publishing tool>" button that takes the user to a publishing surface in the workspace. To render it, write the matching tag on its own line at the end of your reply (it is replaced by the button; the user clicks it to open the pane).
+
+| Tag | Use for |
+| --- | --- |
+| `<open-in-pane tool="publishingDomains"></open-in-pane>` | custom domains or domain management |
+| `<open-in-pane tool="publishingLogs"></open-in-pane>` | deployment logs, app logs, build logs, or publishing logs |
+| `<open-in-pane tool="publishingAnalytics"></open-in-pane>` | deployment traffic or analytics |
+| `<open-in-pane tool="publishingMonitoring"></open-in-pane>` | uptime, latency, resources, or monitoring |
+| `<open-in-pane tool="publishingSettings"></open-in-pane>` | deployment visibility, compute capacity, or publishing settings |
+
+Button behavior:
+
+- Render it when the request is mainly navigation; when navigation is mixed with real work, still do the work with the appropriate tools.
+- Keep your chat reply to one concise, self-contained sentence telling the user where they can find the requested surface. Do not mention a button, shortcut, tag, or marker. Do not say the pane is already open or that you opened it.
+
+| User asks | Tag to emit |
+| --- | --- |
+| "Where are publishing logs?" | `<open-in-pane tool="publishingLogs"></open-in-pane>` |
+| "How do I see deployment analytics?" | `<open-in-pane tool="publishingAnalytics"></open-in-pane>` |
+| "Open my custom domain settings." | `<open-in-pane tool="publishingDomains"></open-in-pane>` |
+
+## Available Functions
+
+### deployConfig(deploymentTarget, run, build, publicDir)
+
+Configure how the project should be deployed to production.
+
+**Parameters:**
+
+- `deploymentTarget` (str, required): "autoscale", "vm", "scheduled", or "static". Pass the current target unchanged unless the user's ask is actually about changing where the app runs.
+- `run` (list[str], optional): Production run command. First entry is binary/script, rest are arguments
+- `build` (list[str], optional): Build/compile command before deployment
+- `publicDir` (str, required for "static"): Directory containing static files
+
+**Returns:** Dict with `success`, `message`, and configuration details
+
+Changes apply to the **next publish**. If the repl is already published, the live deployment keeps its current target and settings until the user republishes — after fixing config, tell the user to republish.
+
+**Example:**
+
+```javascript
+// Configure a Python web app
+const result = await deployConfig({
+    deploymentTarget: "autoscale",
+    run: ["gunicorn", "--bind=0.0.0.0:5000", "--reuse-port", "main:app"]
+});
+
+// Configure a static site
+const result2 = await deployConfig({
+    deploymentTarget: "static",
+    build: ["npm", "run", "build"],
+    publicDir: "dist"
+});
+
+// Configure an always-running bot
+const result3 = await deployConfig({
+    deploymentTarget: "vm",
+    run: ["python", "bot.py"]
+});
+```
+
+### Publishing suggestion
+
+To prompt the user to click the Publish button after the app is ready, call `SuggestUserAction({ action: "deploy", message: "The app is ready to publish." })`. Do not call it from CodeExecution.
+
+### getDeploymentInfo()
+
+Fetch the repl's current deployment metadata directly from the deployments service. Always call this -- never guess from memory or environment variables -- when you need to know whether the project is published, what its production URL is, or whether the live build is healthy. Do NOT run `echo $REPLIT_DOMAINS` to discover the production URL -- inside the dev container that variable holds the `.replit.dev` development domain, not the production URL.
+
+**Returns:** Dict with:
+
+- `success` (bool): `false` when the deployments service is unreachable. Treat as "deployment status unknown" -- tell the user the status is currently unavailable rather than asserting there is no deployment
+- `isDeployed` (bool): `true` when an active deployment exists for this repl. When `false`, do not fabricate a URL -- there is no production URL to give. If the user wants a production URL, guide them through publishing.
+- `primaryUrl` (str): fully-qualified production URL with `https://` scheme (a verified custom domain if the user configured one, otherwise the generated `*.replit.app` subdomain). Empty string when not deployed. Use this whenever you need the production URL (e.g. setting a `REPLIT_APP_URL` secret, configuring rewrites in an external CMS, curling the live site, or telling the user where their app is reachable)
+- `additionalUrls` (list[str]): other public URLs (e.g. additional verified custom domains). Empty list when none
+- `deploymentType` (str): one of `"autoscale"`, `"vm"`, `"static"`, `"scheduled"`, or `""` if unknown / not applicable. Matches the `deploymentTarget` vocabulary `deployConfig()` accepts
+- `hasSuccessfulBuild` (bool): `true` only when the deployment's current build is in the `success` status. `false` when the build is still pending, failed, suspended, or no current build exists. When `isDeployed` is `true` but this is `false`, the `primaryUrl` may be unreachable or still be serving a previous successful build -- if the user reports the live site is broken, suspect the in-flight or failed build first (see `.local/skills/deployment/references/deployment-failure-debugging.md` for how to investigate)
+- `visibility` (str): publishing visibility of the current build -- `"public"` (reachable by anyone on the internet), `"private"` (invited collaborators only), `"password"` (public URL gated by a shared password), or `""` (undeployed, or a deployment kind with no user-facing visibility). Use this to reason about who can actually reach a leaked secret or vulnerable endpoint
+
+**Example:**
+
+```javascript
+const info = await getDeploymentInfo();
+if (!info.success) {
+    console.log("Deployment status unavailable; try again in a moment.");
+} else if (!info.isDeployed) {
+    console.log("This repl has not been published yet.");
+} else {
+    console.log(`Live at ${info.primaryUrl} (${info.deploymentType})`);
+    if (!info.hasSuccessfulBuild) {
+        console.log("Current build is not in the success status -- URL may be stale.");
+    }
+}
+```
+
+### fetchDeploymentLogs({ afterTimestamp, beforeTimestamp, message, messageContext })
+
+Fetch and analyze deployment logs. See `.local/skills/deployment/references/deployment-logs.md` for full documentation.
+
+### explainSchemaDiff() (build agent only)
+
+Explain the development→production database schema diff that publishing surfaces (why publishing wants to change the production schema, and whether it is destructive). Only the build agent can call it. See `.local/skills/deployment/references/explain-schema-diff.md` (available to the build agent) for parameters, return shape, and usage.
+
+## Webhooks and external services reaching the app
+
+When the user wants an external service to call their app -- a webhook sender (Stripe, GitHub, Slack), a CI pipeline, an uptime monitor, or any other automated caller -- you must hand them a URL that the service can actually reach, and tell them up front whether the app's privacy will block that traffic. Do not assume the caller can reach the app.
+
+Always call `getDeploymentInfo()` first and reason from `visibility` and `primaryUrl`:
+
+1. **Give external services the production URL.** Point them at `primaryUrl` (the `*.replit.app` deployment or custom domain), not the workspace `*.replit.dev` development URL. Development URLs are private by default: they require a signed-in collaborator, so an unauthenticated webhook or CI request is rejected, and the URL can change each time the workspace reopens. Do not read `REPLIT_DOMAINS` to construct a webhook URL -- inside the dev container that variable holds the development domain. If `isDeployed` is `false`, there is no production URL yet: tell the user they need to publish first, and do not fabricate a `*.replit.app` URL.
+
+   If the user wants to test an external connection against the dev URL, recommend a **Development** external access token as the supported way to keep the dev URL private (see step 3). This applies to webhooks, CI jobs, and other automated API callers. A Production token does not work against the dev URL. The Publishing tool exposes token controls only after the first publish with deployment privacy set to **Private**; if the controls are unavailable before publishing, explain that prerequisite and guide the user to publish privately rather than defaulting to disabling **Private preview**. Enterprise policy may prevent making dev URLs public; do not suggest bypassing it. Making a dev URL public is a separate, explicit user decision, not a required step for token-based testing: warn that anyone with the URL can reach the running app and remind the user to restore privacy afterward.
+
+2. **Check privacy before promising it will work.** Read `visibility` from `getDeploymentInfo()`:
+   - `"public"` -- anyone on the internet can reach the app. The webhook works with no extra setup.
+   - `"private"` -- only invited collaborators can reach the app without a token. An external caller (a webhook POST, a CI request) will be **rejected** unless it presents a valid external access token. Never tell the user the webhook is configured and working while the deployment is private without addressing access; that is the exact gap that leaves a webhook silently broken.
+   - `"password"` -- the URL is gated by a shared password, which most automated callers cannot supply.
+
+3. **For a private app, proactively guide the user to an external access token.** Do not wait for the user to name-drop "external access token," and do not merely call it a "good idea" -- when the deployment is private and an outside service needs in, an external access token is the required mechanism, so say so directly. Explain:
+   - External access tokens are bearer tokens that let an outside service reach a private app. The **External access tokens** section appears only after the first publish, once the deployment's privacy is set to **Private**. In Enterprise workspaces, only workspace admins can manage tokens.
+   - **Where to create one:** open the **Publishing** tool, select **Adjust settings**, and in the **Security** section find **External access tokens** -- create one there. Choose the **Production** environment for a token that an external service will use against the published app (a **Development** token only works against the `*.replit.dev` dev URL).
+   - The service presents the token either as an `Authorization: Bearer <token>` header (preferred -- keeps it out of URL logs) or as a `?project-protection-bypass=<token>` query parameter when it can only take a URL.
+   - The token is shown **once** at creation; if lost, it must be revoked and re-minted. Treat it like a password: keep it in the calling service's secret settings, not source code or chat, choose the shortest expiration that fits the test, and revoke it afterward. Consult the reference for token revocation rules.
+   - Development tokens do not keep the app running or make its URL permanent. Verify that the server is running and use its current dev URL. Tokens support API requests, not interactive browser previews whose asset requests may omit the token; use normal collaborator sign-in for browsing.
+   - Full reference: https://docs.replit.com/features/deployment-customization/external-access-tokens
+
+Include this marker on its own line so the user can jump to where tokens are created: `<open-in-pane tool="publishingSettings"></open-in-pane>`. Keep the accompanying prose self-contained and do not mention the marker or button.
+
+If the user complains that their production database is not deployed (e.g. the live app's data is empty or its database looks unprovisioned), first make sure the development database has been seeded -- the production database is provisioned from the development database, so an unseeded development database is a required prerequisite that must be satisfied before production can have any data. Surface the development database so the user can verify and seed it: `<open-in-pane tool="database/development"></open-in-pane>`.
+
+## Deployment Targets
+
+Preserve the current target unless the user's request changes where the app runs. For a new deployment, choose:
+
+- `autoscale` (default): stateless websites/APIs; persist state in a database, not server memory.
+- `vm`: always-running bots, WebSocket servers, workers, or processes needing persistent server memory.
+- `scheduled`: periodic jobs, never websites or APIs.
+- `static`: client-only sites; `run` is ignored and `publicDir` is required.
+
+Read [Target and command examples](references/target-examples.md) when selecting a target or writing production run/build commands.
+
+## Run Command Examples
+
+Use production-ready servers, not development servers. Only add a build command when compilation is needed. See [Target and command examples](references/target-examples.md) for Python, Node.js, multiple processes, bundlers, and Rust.
+
+## Publishing Geography
+
+Users can choose the geographic region where their app is published. This is configured in the **Advanced** settings of the Publishing tool, not in code. The agent cannot set this programmatically -- the user selects it in the Publishing UI before clicking Publish.
+
+Key points:
+
+- **Available on Core, Pro, and Enterprise plans.** Free plan users publish to North America by default.
+- **Geography is permanent.** Once a project is published to a geography, it cannot be changed. Inform the user of this before they publish for the first time.
+- **Compute, database, and Object Storage are colocated** in the selected region automatically.
+- **Enterprise admins can enforce a geography** for all new projects across their organization.
+- **Available regions may change over time.** For the current list of supported geographies, refer the user to the [Publishing Geography docs](https://docs.replit.com/cloud-services/deployments/publishing-geography).
+
+If the user asks about deploying to a specific region (e.g. Europe, Asia, Australia):
+
+- **Not yet published & on Core/Pro/Enterprise:** They can select their preferred geography in the **Advanced** section of the Publishing tool before their first publish.
+- **Not yet published & on the Free plan:** Geography selection is not available -- they will publish to North America by default. They can upgrade their plan to choose a region.
+- **Already published:** The geography cannot be changed. Let the user know the selection was locked at first publish.
+- **Enterprise org with enforced geography:** The admin-set geography overrides individual choice. The user publishes to whatever geography their org requires.
+
+Do **not** tell users that Replit only supports US-based infrastructure -- multiple geographies are available.
+
+## Best Practices
+
+1. **Validate before publishing**: Always verify the project works before suggesting publish
+2. **Use production servers**: Avoid insecure development servers in production
+3. **Choose the right target**: Match deployment type to your application's needs
+4. **Configure once**: Set up deployment config early, then suggest publishing when ready
+5. **Check workflows first**: Ensure workflows are running without errors before publishing
+
+## Important Notes
+
+1. **User-initiated publishing**: The user must click the Publish button to actually deploy
+2. **Automatic handling**: Publishing handles building, hosting, TLS, and health checks automatically
+3. **Domain**: Published apps are available at a `.replit.app` domain or custom domain if configured
+4. **Production config lives in `.replit`**: Deployment settings (run command, build command, deployment target) are in the `.replit` file's `[deployment]` section.
+
+## Example Workflow
+
+```javascript
+// 1. Configure deployment settings for a web app
+await deployConfig({
+    deploymentTarget: "autoscale",
+    run: ["gunicorn", "--bind=0.0.0.0:5000", "app:app"]
+});
+```
+
+After verifying the app works, call `SuggestUserAction({ action: "deploy", message: "The app is ready to publish." })`.
