@@ -3,6 +3,7 @@ import { ThumbsUp, ThumbsDown, Bookmark, Share2, Download, BadgeCheck, ChevronDo
 import { api } from "../lib/api.js";
 import { views, ago, dur } from "../lib/fmt.js";
 import VideoCard from "../components/VideoCard.jsx";
+import Avatar from "../components/Avatar.jsx";
 
 export default function Watch({ id, go }) {
   const [d, setD] = useState(null);
@@ -12,7 +13,7 @@ export default function Watch({ id, go }) {
   const [more, setMore] = useState(false);
   const [newest, setNewest] = useState(true);
   const [auto, setAuto] = useState(() => { try { return localStorage.getItem("bf_autoplay") !== "0"; } catch { return true; } });
-  const vref = useRef(); const [pl, setPl] = useState(false); const [tm, setTm] = useState(0); const [du, setDu] = useState(0); const [mu, setMu] = useState(false);
+  const vref = useRef(); const [pl, setPl] = useState(false); const [tm, setTm] = useState(0); const [du, setDu] = useState(0); const [mu, setMu] = useState(false); const [ht, setHt] = useState(0); const [mm, setMm] = useState("");
   const nextRef = useRef([]); nextRef.current = next;
   const load = () => api("/videos/" + id).then(setD).catch(() => setD({ error: true }));
   const loadC = () => api("/videos/" + id + "/comments").then((r) => setCm(r.comments || [])).catch(() => {});
@@ -30,7 +31,7 @@ export default function Watch({ id, go }) {
   const nm = (c) => (c.author && (c.author.displayName || c.author.username)) || "User";
   return (<>
     <div className="pwrap">
-      <video ref={vref} className="player" src={v.videoUrl} poster={v.thumbnailUrl} playsInline onClick={toggle} onPlay={() => setPl(true)} onPause={() => setPl(false)} onTimeUpdate={(e) => setTm(e.target.currentTime)} onLoadedMetadata={(e) => setDu(e.target.duration)} onEnded={() => auto && nextRef.current[0] && go("watch", { id: nextRef.current[0]._id })} />
+      <video ref={vref} className="player" src={v.videoUrl} poster={v.thumbnailUrl} playsInline onClick={toggle} onPlay={() => setPl(true)} onPause={() => setPl(false)} onTimeUpdate={(e) => setTm(e.target.currentTime)} onLoadedMetadata={(e) => { setDu(e.target.duration); setHt(e.target.videoHeight || 0); }} onEnded={() => auto && nextRef.current[0] && go("watch", { id: nextRef.current[0]._id })} />
       <div className="pctl">
         <button onClick={toggle} aria-label="Play or pause">{pl ? <Pause size={26} fill="#fff" /> : <Play size={26} fill="#fff" />}</button>
         <span>{dur(tm)} / {dur(du)}</span>
@@ -39,12 +40,12 @@ export default function Watch({ id, go }) {
         <button onClick={fs} aria-label="Fullscreen"><Maximize size={24} /></button>
       </div>
       {v.category && <span className="pbadge l">{v.category}</span>}
-      <span className="pbadge r">1080P</span>
+      {ht > 0 && <span className="pbadge r">{ht}P</span>}
     </div>
     <h1 className="vt">{v.title}</h1>
     <p className="dim">{views(v.views)} views • {ago(v.createdAt)} {(v.hashtags || []).map((h) => <span key={h} className="tagc"> #{h.replace("#", "")}</span>)}</p>
     <div className="chan">
-      <div className="av">{(a.name || "?")[0]}</div>
+      <Avatar name={a.name} src={a.avatarUrl} size={52} className="ringc" />
       <div style={{ flex: 1 }}><b>{a.name} <BadgeCheck size={15} color="#00e5ff" /></b><p className="dim">{views(d.subscribersCount)} subscribers</p></div>
       <button className={"sub" + (d.subscribed ? " on" : "")} onClick={sub}>{d.subscribed ? "Subscribed" : "Subscribe"}</button>
     </div>
@@ -54,7 +55,7 @@ export default function Watch({ id, go }) {
       <button onClick={() => { navigator.share ? navigator.share({ title: v.title, url: location.href }).catch(() => {}) : navigator.clipboard && navigator.clipboard.writeText(location.href); }}><Share2 size={18} /> Share</button>
       <button onClick={() => window.open(v.videoUrl, "_blank")}><Download size={18} /> Download</button>
       <button className={d.saved ? "on" : ""} onClick={() => act("/save", (r) => ({ saved: r.saved }))}><Bookmark size={18} /> {d.saved ? "Saved" : "Save"}</button>
-      <button aria-label="More"><MoreHorizontal size={20} /></button>
+      <button aria-label="More" onClick={() => { if (navigator.clipboard) navigator.clipboard.writeText(location.origin).then(() => setMm("Link copy ho gaya")); else setMm("Copy nahi ho saka"); }}><MoreHorizontal size={20} /></button>{mm && <small className="dim" style={{ alignSelf: "center" }}>{mm}</small>}
     </div>
     <div className="descbox" onClick={() => setMore(!more)}>
       <p className={more ? "" : "clamp"}>{v.description}</p>
@@ -64,7 +65,7 @@ export default function Watch({ id, go }) {
     {v.allowComments === false ? <p className="dim">Comments band hain.</p> : (
       <div className="cbox"><input value={text} onChange={(e) => setText(e.target.value)} onKeyDown={(e) => e.key === "Enter" && send()} placeholder="Add a comment..." /><Smile size={20} color="#9db4d9" /><button onClick={send}>Post</button></div>
     )}
-    {sorted.map((c) => (<div className="cm" key={c._id}><div className="av sm">{nm(c)[0]}</div><div><b>{nm(c)}</b> <span className="dim">{ago(c.createdAt)}</span><p>{c.text}</p><button className="rep" onClick={() => setText("@" + nm(c) + " ")}>Reply</button></div></div>))}
+    {sorted.map((c) => (<div className="cm" key={c._id}><Avatar name={nm(c)} src={c.author && c.author.avatarUrl} size={34} /><div><b>{nm(c)}</b> <span className="dim">{ago(c.createdAt)}</span><p>{c.text}</p><button className="rep" onClick={() => setText("@" + nm(c) + " ")}>Reply</button></div></div>))}
     <div className="chead"><h2>Up Next</h2><label className="auto">Autoplay <input type="checkbox" checked={auto} onChange={toggleAuto} /><i /></label></div>
     {next.slice(0, 8).map((x) => <VideoCard key={x._id} v={x} go={go} row />)}
   </>);

@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 import { UploadCloud, FolderOpen, Globe, Lock, Link2, ArrowLeft, ArrowRight, Check, X, Baby, Users } from "lucide-react";
 import { api, API_BASE, getSession } from "../lib/api.js";
+import upCloud from "../assets/art/up_cloud.png";
+import upClap from "../assets/art/up_clap.png";
 
 const STEPS = ["Upload", "Details", "Visibility", "Audience", "Language", "Publish"];
 const VIS = [["Public", Globe, "Anyone can search for and watch your video."], ["Private", Lock, "Only you and people you choose can watch your video."], ["Unlisted", Link2, "Anyone with the link can watch your video."]];
@@ -66,14 +68,14 @@ export default function Upload({ go }) {
 
       {s === 0 && (<>
         <div className="drop" onClick={() => input.current.click()} onDragOver={(e) => e.preventDefault()} onDrop={(e) => { e.preventDefault(); setFile(e.dataTransfer.files[0]); }}>
-          <UploadCloud size={64} color="#00e5ff" />
+          <img className="upimg" src={upCloud} alt="" />
           <h3>{file ? file.name : "Drag and Drop Your Video Here"}</h3>
           <p className="dim">{file ? (file.size / 1048576).toFixed(1) + " MB" : "or click to browse"}</p>
           <p style={{ color: "var(--cyan)" }}>MP4, MOV, AVI, MKV up to 2GB</p>
           <input ref={input} type="file" accept="video/*" hidden onChange={(e) => setFile(e.target.files[0])} />
         </div>
         <button className="pill main wide" onClick={() => input.current.click()}><FolderOpen size={18} /> Select File</button>
-        <div className="tipbox"><b>Upload Tips:</b><p><Check size={14} color="#22d36b" /> Use high-quality video (1080p is best)</p><p><Check size={14} color="#22d36b" /> Keep your video family-friendly</p><p><Check size={14} color="#22d36b" /> Add an attractive thumbnail</p></div>
+        <div className="tipbox"><img className="tipimg" src={upClap} alt="" /><b>Upload Tips:</b><p><Check size={14} color="#22d36b" /> Use high-quality video (1080p is best)</p><p><Check size={14} color="#22d36b" /> Keep your video family-friendly</p><p><Check size={14} color="#22d36b" /> Add an attractive thumbnail</p></div>
         <p className="note">Your video will be reviewed for community guidelines before it goes live.</p>
         <button className="pill main wide" onClick={next}>Next <ArrowRight size={18} /></button>
       </>)}

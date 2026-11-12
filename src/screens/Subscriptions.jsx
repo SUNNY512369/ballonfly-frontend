@@ -21,7 +21,7 @@ export default function Subscriptions({ go }) {
           <button className={"subd" + (off[a._id] ? " off" : "")} onClick={() => toggle(a)}>{off[a._id] ? "Subscribe" : <>Subscribed <Check size={14} /></>}</button></div>))}</div>}
       {tab === "Live" ? <p className="empty">Abhi koi Live nahi chal raha.</p> : tab !== "Channels" && (<>
         <h2 className="h">Latest Videos from Your Subscriptions</h2>
-        {vids.length ? <div className="grid2">{vids.map((v) => <VideoCard key={v._id} v={v} go={go} />)}</div> : <p className="empty">Kisi channel ko Subscribe karein, un ke videos yahan aayenge.</p>}</>)}
+        {vids.length ? <div className="feedgrid">{vids.map((v) => <VideoCard key={v._id} v={v} go={go} />)}</div> : <p className="empty">Kisi channel ko Subscribe karein, un ke videos yahan aayenge.</p>}</>)}
     </>)}
   </>);
 }

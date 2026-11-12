@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Plus, ChevronRight, SlidersHorizontal } from "lucide-react";
 import { api } from "../lib/api.js";
 import VideoCard from "../components/VideoCard.jsx";
+import Avatar from "../components/Avatar.jsx";
 
 export default function Home({ go }) {
   const [cats, setCats] = useState([]);
@@ -18,13 +19,13 @@ export default function Home({ go }) {
   return (<>
     <div className="stories">
       <button onClick={() => go("upload")}><span className="ring plusring"><Plus size={34} /></span><small>Create</small></button>
-      {authors.map((a) => (<button key={a._id} onClick={() => setWho(who === a._id ? "" : a._id)}><span className={"ring" + (who === a._id ? " act" : "")}><i>{(a.name || a.username || "?")[0]}</i></span><small>{a.name || a.username}</small></button>))}
+      {authors.map((a) => (<button key={a._id} onClick={() => setWho(who === a._id ? "" : a._id)}><span className={"ring" + (who === a._id ? " act" : "")}><Avatar name={a.name || a.username} src={a.avatarUrl} size={62} /></span><small>{a.name || a.username}</small></button>))}
       {authors.length > 5 && <span className="more"><ChevronRight size={22} /></span>}
     </div>
     <div className="chips">
       {["", ...cats].map((c) => <button key={c} className={c === cat ? "on" : ""} onClick={() => setCat(c)}>{c || "All"}</button>)}
       <button className={"filt" + (popular ? " on" : "")} aria-label="Sort by popular" onClick={() => setPopular(!popular)}><SlidersHorizontal size={18} /></button>
     </div>
-    {shown === null ? <p className="empty">Loading...</p> : shown.length === 0 ? <p className="empty">Abhi koi video nahi. + dabakar pehla video upload karein.</p> : shown.map((v, i) => <VideoCard key={v._id} v={v} go={go} badge={badgeOf(v, i)} />)}
+    {shown === null ? <p className="empty">Loading...</p> : shown.length === 0 ? <p className="empty">Abhi koi video nahi. + dabakar pehla video upload karein.</p> : <div className="feedgrid">{shown.map((v, i) => <VideoCard key={v._id} v={v} go={go} badge={badgeOf(v, i)} />)}</div>}
   </>);
 }

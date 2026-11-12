@@ -1,36 +1,47 @@
-import { useEffect, useState } from "react";
-import { Mic, MicOff, Video, VideoOff, Gift, Gamepad2, Music, Mic2, Star, UserPlus, MonitorUp, Settings as Cog, Radio, Eye, Heart, Trophy } from "lucide-react";
-import { Head, Panel, Demo, Stat } from "../components/Ui.jsx";
+import { useEffect, useRef, useState } from "react";
+import { Mic, MicOff, Video, VideoOff, Gift, Gamepad2, Music, Mic2, Star, UserPlus, MonitorUp, Radio, Eye, Heart, Trophy } from "lucide-react";
+import { Head, Panel, Stat } from "../components/Ui.jsx";
 import { useCoins } from "./Coins.jsx";
+import pkTrophy from "../assets/art/pk_trophy.png";
+import pkVs from "../assets/art/pk_vs.png";
 
+const z = (n) => String(n).padStart(2, "0");
 export function PK() {
-  const [a, setA] = useState(238500), [b, setB] = useState(241700), [t, setT] = useState(88), [c, setC] = useCoins(), [nx, setNx] = useState(765);
-  useEffect(() => { const i = setInterval(() => { setT((x) => (x > 0 ? x - 1 : 0)); setNx((x) => (x > 0 ? x - 1 : 0)); setA((x) => x + Math.floor(Math.random() * 400)); setB((x) => x + Math.floor(Math.random() * 400)); }, 1000); return () => clearInterval(i); }, []);
-  const gift = (side) => { if (c.coins < 50) return alert("Coins kam hain"); setC({ ...c, coins: c.coins - 50 }); side ? setB(b + 5000) : setA(a + 5000); };
-  const pa = Math.round((a / (a + b)) * 100), z = (n) => String(n).padStart(2, "0");
-  return (<><Head icon={Trophy} title="Live PK Battle" sub="Go head-to-head, win gifts and earn more!" />
-    <div className="nextb"><small>Next Battle Starts In:</small><b>{z(Math.floor(nx / 3600))} : {z(Math.floor((nx % 3600) / 60))} : {z(nx % 60)}</b><small>Hrs &nbsp;&nbsp; Min &nbsp;&nbsp; Sec</small></div>
-    <div className="pk"><span className="livetag">● LIVE</span>
-      <div className="pkh"><div className="pka"><span className="crwn">👑</span><i className="pkav">S</i><b>Sarah Queen</b><h2>🔥 {a.toLocaleString()}</h2></div><span className="vs">VS</span><div className="pka"><span className="crwn">👑</span><i className="pkav g">G</i><b>GamingPro</b><h2>🔥 {b.toLocaleString()}</h2></div></div>
-      <div className="pkbar"><i style={{ width: pa + "%" }} /><em>{pa}% &nbsp;&nbsp;&nbsp;&nbsp; {100 - pa}%</em></div>
-      <p className="dim" style={{ textAlign: "center" }}>Battle Time <b style={{ color: "#fff", fontSize: 22 }}>{Math.floor(t / 60)}:{z(t % 60)}</b></p>
-      <div className="wiz-nav"><button className="pill main" onClick={() => gift(0)}><Gift size={18} /> Gift Sarah</button><button className="pill main" style={{ background: "linear-gradient(90deg,#ff2e7e,#c45bff)", color: "#fff" }} onClick={() => gift(1)}><Gift size={18} /> Gift Gaming</button></div></div>
-    <Panel icon={Trophy} title="Daily Rank">{[["DreamerKing", "12.5M"], ["Sarah Queen", "10.8M"], ["GamingPro", "9.7M"], ["TechMaster", "8.3M"], ["PrincessLive", "7.9M"]].map((r, i) => <div key={r[0]} className="brow"><span>{i < 3 ? "👑" : i + 1 + "."} {r[0]}</span><b>🎁 {r[1]}</b></div>)}</Panel>
-    <Panel title="PK Statistics"><div className="stats"><Stat icon={Trophy} label="Total Battles" value="1,248" /><Stat icon={Star} tone="amber" label="Total Winners" value="642" /><Stat icon={Gift} tone="purple" label="Total Gifts" value="18.5M" /><Stat icon={Star} tone="green" label="Total Earnings" value="$12,430" /></div></Panel>
-    <Panel title="Battle Categories"><div className="grid4 cats">{[[Gamepad2, "Gaming PK", "#2563eb"], [Music, "Music PK", "#8a42ff"], [Mic2, "Talk PK", "#5b3df5"], [Star, "Talent PK", "#b8860b"]].map(([I, n, c]) => <div key={n} style={{ background: c }}><I size={30} /><b>{n}</b></div>)}</div></Panel><Demo /></>);
+  const [a, setA] = useState(0), [b, setB] = useState(0), [t, setT] = useState(0), [run, setRun] = useState(false), [cat, setCat] = useState("Gaming PK"), [c, setC] = useCoins(), [done, setDone] = useState(false);
+  useEffect(() => { if (!run) return; const i = setInterval(() => setT((x) => { if (x <= 1) { setRun(false); setDone(true); return 0; } return x - 1; }), 1000); return () => clearInterval(i); }, [run]);
+  const start = () => { setA(0); setB(0); setT(90); setDone(false); setRun(true); };
+  const gift = (side) => { if (!run) return; if (c.coins < 50) return alert("Coins kam hain. Coin screen se test coins lein."); setC({ ...c, coins: c.coins - 50 }); side ? setB(b + 50) : setA(a + 50); };
+  const pa = a + b ? Math.round((a / (a + b)) * 100) : 50;
+  return (<><Head icon={Trophy} title="Live PK Battle" sub="Practice mode: dono taraf aap khud gift bhej kar khelte hain" />
+    <img className="pktrophy" src={pkTrophy} alt="" />
+    <div className="chips">{["Gaming PK", "Music PK", "Talk PK", "Talent PK"].map((x) => <button key={x} className={x === cat ? "on" : ""} onClick={() => !run && setCat(x)}>{x}</button>)}</div>
+    <div className="pk"><span className="livetag">{run ? "● LIVE" : done ? "FINISHED" : "READY"}</span>
+      <div className="pkh"><div className="pka"><span className="crwn">{done && a > b ? "👑" : ""}</span><i className="pkav">Y</i><b>You</b><h2>🔥 {a}</h2></div><img className="vsimg" src={pkVs} alt="VS" /><div className="pka"><span className="crwn">{done && b > a ? "👑" : ""}</span><i className="pkav g">O</i><b>Opponent</b><h2>🔥 {b}</h2></div></div>
+      <div className="pkbar"><i style={{ width: pa + "%" }} /><em>{pa}% &nbsp;&nbsp;&nbsp; {100 - pa}%</em></div>
+      <p className="dim" style={{ textAlign: "center" }}>{cat} • Battle Time <b style={{ color: "#fff", fontSize: 22 }}>{Math.floor(t / 60)}:{z(t % 60)}</b></p>
+      {run ? <div className="wiz-nav"><button className="pill main" onClick={() => gift(0)}><Gift size={18} /> Gift You</button><button className="pill main" style={{ background: "linear-gradient(90deg,#ff2e7e,#c45bff)", color: "#fff" }} onClick={() => gift(1)}><Gift size={18} /> Gift Opponent</button></div> : <button className="pill main wide" onClick={start}>{done ? "Dobara Battle" : "Start Battle"}</button>}
+      {done && <p style={{ textAlign: "center" }}>{a === b ? "Barabar rahi!" : a > b ? "Aap jeet gaye 🎉" : "Opponent jeet gaya"}</p>}</div>
+    <p className="note">Har gift 50 test coins leta hai. Asli multi-user PK ke liye live streaming server chahiye.</p></>);
 }
 
 export function MultiGuest() {
-  const [g, setG] = useState(["Sarah Queen", "GamingPro", "TechMaster", "PrincessLive", "DreamerKing"].map((n) => ({ n, mic: true, cam: true })));
-  const [live, setLive] = useState(true), [sec, setSec] = useState(5057), [msgs, setM] = useState([["DreamerGirl", "This is amazing! 🔥"], ["TechLover", "Love this multi live! ❤️"], ["GamingFan", "Can more guests join?"]]), [t, setT] = useState("");
+  const vref = useRef(), sref = useRef(null);
+  const [live, setLive] = useState(false), [mic, setMic] = useState(true), [cam, setCam] = useState(true), [sec, setSec] = useState(0), [err, setErr] = useState(""), [msgs, setM] = useState([]), [t, setT] = useState(""), [note, setNote] = useState("");
+  const stop = () => { if (sref.current) { sref.current.getTracks().forEach((x) => x.stop()); sref.current = null; } if (vref.current) vref.current.srcObject = null; };
   useEffect(() => { if (!live) return; const i = setInterval(() => setSec((x) => x + 1), 1000); return () => clearInterval(i); }, [live]);
-  const tg = (i, k) => setG(g.map((x, j) => (j === i ? { ...x, [k]: !x[k] } : x))), z = (n) => String(n).padStart(2, "0");
-  const me = g[0], ctl = [[me.mic ? Mic : MicOff, me.mic ? "Mute" : "Unmute", () => tg(0, "mic")], [me.cam ? Video : VideoOff, me.cam ? "Stop Video" : "Start Video", () => tg(0, "cam")], [UserPlus, "Invite Guest", () => g.length < 6 && setG([...g, { n: "Guest" + (g.length + 1), mic: true, cam: true }])], [MonitorUp, "Share Screen", () => {}], [Cog, "Settings", () => {}]];
-  return (<><div className="livebar"><span className="livetag">● {live ? "LIVE" : "ENDED"}</span><span><Eye size={16} /> 12.5K</span><button className="pill" style={{ height: 38, marginLeft: "auto", color: "#ff6b81" }} onClick={() => setLive(false)}>End Live</button></div>
-    <Head title="Multi-Guest Live" sub="Invite up to 6 guests for an amazing live session!" />
-    <div className="mg"><div className="tile host"><i className="pkav">{me.n[0]}</i><b>👑 Host • {me.n}</b></div>{g.slice(1).map((x, i) => <div key={x.n} className="tile"><i className="pkav g">{x.n[0]}</i><b>{x.mic ? <Mic size={13} /> : <MicOff size={13} color="#ff6b81" />} {x.n}</b></div>)}</div>
-    <div className="ctls">{ctl.map(([I, l, f]) => <button key={l} onClick={f}><I size={24} /><span>{l}</span></button>)}<button className="golive" onClick={() => setLive(true)}><Radio size={20} /> Go Live</button></div>
-    <Panel title="Live Statistics"><div className="stats"><Stat icon={Eye} label="Viewers" value="12.5K" /><Stat icon={Heart} tone="purple" label="Likes" value="245.8K" /><Stat icon={Gift} tone="amber" label="Gifts" value="98.7K" /><Stat icon={Eye} tone="green" label="Duration" value={z(Math.floor(sec / 3600)) + ":" + z(Math.floor((sec % 3600) / 60)) + ":" + z(sec % 60)} /></div></Panel>
-    <Panel title={"Guest List (" + g.length + "/6)"}><div className="guests">{g.map((x) => <span key={x.n}><i className="pkav g sm">{x.n[0]}</i><small>{x.n}</small></span>)}</div></Panel>
-    <Panel title="Live Chat">{msgs.map((m, i) => <p key={i}><b>{m[0]}</b> {m[1]}</p>)}<div className="cbox"><input value={t} onChange={(e) => setT(e.target.value)} placeholder="Type a message..." /><button onClick={() => { if (t.trim()) { setM([...msgs, ["You", t]]); setT(""); } }}>Send</button></div></Panel><Demo /></>);
+  useEffect(() => () => stop(), []);
+  const start = async () => { setErr(""); try { const s = await navigator.mediaDevices.getUserMedia({ video: true, audio: true }); sref.current = s; vref.current.srcObject = s; setLive(true); setSec(0); setMic(true); setCam(true); } catch { setErr("Camera ya mic ki ijazat nahi mili, ya device nahi mila."); } };
+  const end = () => { stop(); setLive(false); };
+  const tgl = (kind, set, val) => { const s = sref.current; if (!s) return; (kind === "a" ? s.getAudioTracks() : s.getVideoTracks()).forEach((x) => (x.enabled = !val)); set(!val); };
+  const share = async () => { try { const d = await navigator.mediaDevices.getDisplayMedia({ video: true }); if (vref.current) vref.current.srcObject = d; d.getVideoTracks()[0].onended = () => { if (vref.current && sref.current) vref.current.srcObject = sref.current; }; } catch {} };
+  const invite = () => { const url = location.origin; if (navigator.share) navigator.share({ title: "Ballonfly Live", url }).catch(() => {}); else if (navigator.clipboard) navigator.clipboard.writeText(url); setNote("Link share ho gaya. Asli guests ko jodne ke liye live server chahiye."); };
+  const ctl = [[mic ? Mic : MicOff, mic ? "Mute" : "Unmute", () => tgl("a", setMic, mic)], [cam ? Video : VideoOff, cam ? "Stop Video" : "Start Video", () => tgl("v", setCam, cam)], [UserPlus, "Invite Guest", invite], [MonitorUp, "Share Screen", share]];
+  return (<><div className="livebar"><span className="livetag">● {live ? "LIVE" : "OFFLINE"}</span>{live && <span>{z(Math.floor(sec / 60))}:{z(sec % 60)}</span>}</div>
+    <Head title="Multi-Guest Live" sub="Apna camera aur mic chala kar live ho jayein" />
+    <div className="tile host" style={{ aspectRatio: "16/9", display: "block" }}><video ref={vref} autoPlay muted playsInline style={{ width: "100%", height: "100%", objectFit: "cover", display: live ? "block" : "none" }} />{!live && <div style={{ display: "grid", placeItems: "center", height: "100%" }}><span className="dim">Camera band hai</span></div>}</div>
+    {err && <p style={{ color: "#ff6b81" }}>{err}</p>}
+    <div className="ctls">{live && ctl.map(([I, l, f]) => <button key={l} onClick={f}><I size={22} /><span>{l}</span></button>)}{live ? <button className="golive" style={{ background: "#dc2626" }} onClick={end}><Radio size={18} /> End Live</button> : <button className="golive" onClick={start}><Radio size={18} /> Go Live</button>}</div>
+    {note && <p className="note">{note}</p>}
+    <Panel title="Live Statistics"><div className="stats"><Stat icon={Eye} label="Viewers" value="0" /><Stat icon={Heart} tone="purple" label="Likes" value="0" /><Stat icon={Gift} tone="amber" label="Gifts" value="0" /><Stat icon={Radio} tone="green" label="Duration" value={z(Math.floor(sec / 3600)) + ":" + z(Math.floor((sec % 3600) / 60)) + ":" + z(sec % 60)} /></div></Panel>
+    <Panel title="Live Chat (sirf aap ke liye)">{msgs.map((m, i) => <p key={i}><b>You</b> {m}</p>)}<div className="cbox"><input value={t} onChange={(e) => setT(e.target.value)} placeholder="Type a message..." /><button onClick={() => { if (t.trim()) { setM([...msgs, t]); setT(""); } }}>Send</button></div></Panel></>);
 }

@@ -4,6 +4,8 @@ import { api } from "../lib/api.js";
 import { views } from "../lib/fmt.js";
 import VideoCard from "../components/VideoCard.jsx";
 import Logo from "../components/Logo.jsx";
+import AvatarPicker from "../components/AvatarPicker.jsx";
+import banner from "../assets/art/chan_banner.png";
 
 const TABS = [["home", "Home"], ["videos", "Videos"], ["shorts", "Shorts"], ["live", "Live"], ["playlists", "Playlists"], ["community", "Community"]];
 export default function Profile({ go, tab: t0 = "home" }) {
@@ -14,8 +16,8 @@ export default function Profile({ go, tab: t0 = "home" }) {
   const pls = Object.entries(lists);
   const PL = ({ c, a }) => (<div className="plc" onClick={() => go("watch", { id: a[0]._id })}><div className="thumb">{a[0].thumbnailUrl && <img src={a[0].thumbnailUrl} alt="" />}<span className="plb"><ListVideo size={14} /> {a.length}</span></div><div className="plt"><b>{c}</b><small className="dim">{a.length} videos</small></div><MoreVertical size={16} /></div>);
   return (<>
-    <div className="cban"><Logo height={64} /><small>DREAM • EXPLORE • GROW</small></div>
-    <div className="chrow"><div className="av big ring2">{(p.channelName || "?")[0]}</div>
+    <img className="cbanimg" src={banner} alt="" />
+    <div className="chrow"><AvatarPicker name={p.channelName} src={p.avatarUrl} size={84} onChange={(u) => setP({ ...p, avatarUrl: u })} />
       <div><h2 style={{ margin: 0 }}>{p.channelName} <BadgeCheck size={22} color="#00e5ff" /></h2><p className="dim" style={{ margin: "2px 0" }}>@{p.username}</p><p className="dim" style={{ margin: 0 }}>{vids.length} videos • {views(vids.reduce((a, v) => a + (v.views || 0), 0))} views</p></div></div>
     <p>{p.bio}</p>
     <div className="wiz-nav" style={{ margin: "6px 0 12px" }}><button className="pill main" style={{ flex: 1 }} onClick={() => setTab("videos")}>Manage videos</button><button className="pill" style={{ marginLeft: 10 }} aria-label="Edit channel" onClick={() => go("settings")}><Pencil size={18} /></button></div>

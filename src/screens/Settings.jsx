@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Settings as Cog, Check, Upload, Globe, Megaphone, ExternalLink } from "lucide-react";
 import { api } from "../lib/api.js";
 import { Head, Panel } from "../components/Ui.jsx";
+import AvatarPicker from "../components/AvatarPicker.jsx";
 
 const lget = (k, d) => { try { return JSON.parse(localStorage.getItem(k)) ?? d; } catch { return d; } };
 export default function Settings() {
@@ -14,6 +15,7 @@ export default function Settings() {
   const chPw = async () => { try { await api("/users/me/password", { method: "POST", body: pw }); setPw({ currentPassword: "", newPassword: "" }); setMsg("Password badal gaya ✓"); } catch (e) { setMsg(e.message); } };
   return (<><Head icon={Cog} title="Settings" sub="Manage your channel preferences and settings" />
     <button className="pill main wide" onClick={save}>Save Changes <Check size={18} /></button>{msg && <p style={{ color: "var(--cyan)", margin: 0 }}>{msg}</p>}
+    <Panel title="Profile Photo"><AvatarPicker name={f.channelName} src={f.avatarUrl} onChange={(u) => setF({ ...f, avatarUrl: u })} /></Panel>
     <Panel icon={Cog} title="General Settings">
       <label className="lbl">Channel Name</label><input className="in" value={f.channelName || ""} onChange={set("channelName")} /><small className="dim">This name will appear on your channel.</small>
       <label className="lbl">Channel Handle</label><div className="in handle"><span>@</span><b>{f.username}</b><Check size={18} color="#22d36b" /></div>
